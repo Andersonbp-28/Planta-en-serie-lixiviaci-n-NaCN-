@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de cianuración de oro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: panel fijo de parámetros a la izquierda + área de pestañas a la derecha (herramienta de laboratorio) */
+:root{
+  --paper:#f5f6f7; --panel:#ffffff; --ink:#15191d; --ink-2:#4a535c; --ink-3:#77818b;
+  --line:#dde1e5; --accent:#9a6b00; --accent-soft:#f6ecd4;
+  --good:#1d7a3e; --warn:#a15c00; --crit:#b42318;
+  --tank:#e9edf1; --tank-edge:#9aa4ae;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#121417; --panel:#1a1d21; --ink:#eef0f2; --ink-2:#b9c0c7; --ink-3:#8a939c;
+    --line:#2d3238; --accent:#e0b04a; --accent-soft:#3a2f15; --tank:#242a30; --tank-edge:#5d6873;
+    --good:#4cc277; --warn:#e3a13b; --crit:#f07067;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#121417; --panel:#1a1d21; --ink:#eef0f2; --ink-2:#b9c0c7; --ink-3:#8a939c;
+  --line:#2d3238; --accent:#e0b04a; --accent-soft:#3a2f15; --tank:#242a30; --tank-edge:#5d6873;
+  --good:#4cc277; --warn:#e3a13b; --crit:#f07067;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:14px/1.5 var(--body)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;font-weight:600}
+h1{font-size:22px;letter-spacing:.2px}
+h2{font-size:18px}
+h3{font-size:15px}
+p{margin:0}
+.num,td.n,.kpi .v{font-family:var(--mono);font-variant-numeric:tabular-nums}
+header.top{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header.top .sub{color:var(--ink-2);max-width:70ch}
+.wrap{display:grid;grid-template-columns:330px minmax(0,1fr);min-height:calc(100vh - 70px)}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:14px 16px 40px;overflow:auto}
+main{padding:16px 20px 48px;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 6px}
+fieldset:first-of-type{border-top:0;padding-top:0}
+legend{font-family:var(--display);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);padding:0 0 6px}
+.f{display:grid;grid-template-columns:1fr 92px;gap:2px 8px;align-items:center;margin:0 0 8px}
+.f label{color:var(--ink-2);font-size:13px}
+.f input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--accent)}
+.f .hint{grid-column:1 / -1;color:var(--ink-3);font-size:12px}
+input[type=number],select,textarea{font:13px var(--mono);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:4px 6px;width:100%}
+select{font-family:var(--body)}
+textarea{min-height:130px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:500 13px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] button.pri{color:#1a1500}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{appearance:none;border:0;background:none;padding:8px 12px;font:500 14px var(--body);color:var(--ink-2);border-bottom:2px solid transparent;border-radius:0;cursor:pointer;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.view{display:none}
+.view.on{display:block}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h3{margin-bottom:4px}
+.card .cap{color:var(--ink-2);font-size:13px;margin-bottom:8px;max-width:75ch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi .l{color:var(--ink-2);font-size:12px}
+.kpi .v{font-size:22px;font-weight:500}
+.kpi .u{color:var(--ink-3);font-size:12px;margin-left:3px;font-family:var(--body)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.pill.o2{color:var(--s1)} .pill.cn{color:var(--s2)} .pill.mix{color:var(--good)}
+.pill.warn{color:var(--warn)}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:12px var(--mono);color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.12);white-space:nowrap;display:none;z-index:3}
+.chart .tip b{font-family:var(--body)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-2);margin:6px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{width:22px;height:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--ink-2);font-weight:500;font-size:12px}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.best td{background:var(--accent-soft)}
+.tablewrap{overflow-x:auto}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row label{color:var(--ink-2);font-size:13px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin:4px 0 8px}
+.checks label{display:inline-flex;gap:5px;align-items:center}
+.note{font-size:12px;color:var(--ink-3);margin-top:8px;max-width:80ch}
+.eq{font-family:var(--mono);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:6px 0 10px;overflow-x:auto;white-space:nowrap;font-size:13px}
+.theory{max-width:82ch}
+.theory h3{margin:18px 0 4px}
+.theory p,.theory li{color:var(--ink-2)}
+.theory ul{padding-left:20px;margin:4px 0}
+details summary{cursor:pointer;color:var(--ink-2);font-size:13px;margin-top:8px}
+.copyok{color:var(--good);font-size:12px}
+.flow{overflow-x:auto}
+.flow svg{display:block;min-width:640px;width:100%;height:auto}
+.flow svg text{font-family:var(--mono)}
+.flow .tk.new{animation:tkIn .55s ease-out both}
+.flow .tankfill{transition:y .45s ease,height .45s ease,fill-opacity .45s ease}
+@keyframes tkIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+.flow .pipe.on{stroke-dasharray:6 5;animation:pipeflow .8s linear infinite}
+@keyframes pipeflow{to{stroke-dashoffset:-11}}
+.flow .imp{transform-box:fill-box;transform-origin:center}
+.flow svg.run .tk.act .imp{animation:spin .5s linear infinite}
+@keyframes spin{0%{transform:scaleX(1)}50%{transform:scaleX(-1)}100%{transform:scaleX(1)}}
+.flow .bub{opacity:0;transform-box:fill-box}
+.flow svg.run .tk.act .bub{animation:bub 1.8s linear infinite}
+@keyframes bub{0%{opacity:0;transform:translateY(0)}15%{opacity:.85}100%{opacity:0;transform:translateY(-60px)}}
+.flow .pulp,.flow .tankfill{transition:none}
+.switch{display:inline-flex;align-items:center;gap:8px;font:500 13px var(--body);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;background:var(--panel);cursor:pointer;color:var(--ink)}
+.switch .knob{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;transition:background .2s}
+.switch .knob::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .2s}
+.switch[aria-pressed="true"] .knob{background:var(--good)}
+.switch[aria-pressed="true"] .knob::after{left:16px}
+.clock{font:500 14px var(--mono);color:var(--ink)}
+.stepper{display:inline-flex;align-items:center;gap:6px}
+.stepper button{min-width:34px;padding:4px 10px;font-weight:600}
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr}
+  aside{border-right:0;border-bottom:1px solid var(--line)}
+  .grid2{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Simulador de cianuración de oro en tanques agitados</h1>
+    <p class="sub">Cinética de lixiviación, efecto de las variables de operación, comparación de modelos y balance de un circuito de tanques en serie.</p>
+  </div>
+  <p class="sub" style="font-size:12px">Bartan · Blanco · Vera — Proyecto de procesamiento de oro</p>
+</header>
+
+<div class="wrap">
+<aside aria-label="Parámetros de operación">
+  <fieldset>
+    <legend>Modelo cinético activo</legend>
+    <div class="f" style="grid-template-columns:1fr">
+      <select id="model" aria-label="Modelo cinético activo"></select>
+      <span class="hint" id="modelHint"></span>
+    </div>
+    <div class="f"><label for="nA">Exponente n de Avrami</label><input type="number" id="nA" value="0.8" step="0.05" min="0.2" max="4"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Mineral</legend>
+    <div class="f"><label for="head">Ley de cabeza Au (g/t)</label><input type="number" id="head" value="5.25" step="0.05" min="0"></div>
+    <div class="f"><label for="d50">d₅₀ de los granos de oro (µm)</label><input type="number" id="d50" value="25" step="1" min="1" max="300">
+      <input type="range" id="d50r" min="2" max="150" step="1" value="25" aria-label="d50 de granos de oro"></div>
+    <div class="f"><label for="sg">Dispersión σg de tamaños (–)</label><input type="number" id="sg" value="1.8" step="0.1" min="1" max="4">
+      <span class="hint">σg = 1 equivale a granos de un solo tamaño (monodisperso).</span></div>
+    <div class="f"><label for="refr">Oro no lixiviable / encapsulado (%)</label><input type="number" id="refr" value="4" step="0.5" min="0" max="80"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Química de la solución</legend>
+    <div class="f"><label for="cn">NaCN (mg/L)</label><input type="number" id="cn" value="400" step="10" min="0">
+      <input type="range" id="cnr" min="20" max="1500" step="10" value="400" aria-label="NaCN"></div>
+    <div class="f"><label for="ph">pH</label><input type="number" id="ph" value="10.8" step="0.1" min="7" max="13">
+      <input type="range" id="phr" min="8" max="12.5" step="0.1" value="10.8" aria-label="pH"></div>
+    <div class="f"><label for="domode">Oxígeno disuelto</label>
+      <select id="domode"><option value="fix">Valor fijo</option><option value="sat">Saturación a T (aire/O₂)</option></select></div>
+    <div class="f"><label for="do">OD (mg/L)</label><input type="number" id="do" value="8" step="0.5" min="0.2">
+      <input type="range" id="dor" min="0.5" max="35" step="0.5" value="8" aria-label="Oxígeno disuelto"></div>
+    <div class="f"><label for="yo2">O₂ en el gas inyectado (%)</label><input type="number" id="yo2" value="20.9" step="0.5" min="1" max="100">
+      <span class="hint">Solo en modo saturación: OD = C*(T)·(y/20.9)·η.</span></div>
+    <div class="f"><label for="eta">Eficiencia de aireación η</label><input type="number" id="eta" value="0.95" step="0.05" min="0.1" max="1"></div>
+    <div class="f"><label for="kc">Consumo por cianicidas k꜀ (h⁻¹)</label><input type="number" id="kc" value="0" step="0.005" min="0">
+      <span class="hint">0 = [CN⁻] se mantiene por dosificación. &gt; 0 = lote sin redosificar.</span></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Temperatura y agitación</legend>
+    <div class="f"><label for="T">Temperatura (°C)</label><input type="number" id="T" value="25" step="1" min="5" max="60">
+      <input type="range" id="Tr" min="5" max="60" step="1" value="25" aria-label="Temperatura"></div>
+    <div class="f"><label for="dl">Capa límite δ (µm)</label><input type="number" id="dl" value="50" step="1" min="10" max="150">
+      <input type="range" id="dlr" min="20" max="90" step="1" value="50" aria-label="Espesor de capa límite">
+      <span class="hint">Agitación intensa ≈ 20 µm · suave ≈ 90 µm (Habashi; Ray y Ray, cap. 5).</span></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Simulación</legend>
+    <div class="f"><label for="tmax">Horizonte de tiempo (h)</label><input type="number" id="tmax" value="48" step="1" min="2" max="500"></div>
+    <div class="f"><label for="teval">Tiempo de evaluación (h)</label><input type="number" id="teval" value="24" step="1" min="0.5"></div>
+    <div class="f"><label for="target">Recuperación objetivo (%)</label><input type="number" id="target" value="90" step="1" min="1" max="99.9"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Calibración de modelos empíricos</legend>
+    <div class="f"><label for="t50ref">t₅₀ a condiciones de referencia (h)</label><input type="number" id="t50ref" value="3" step="0.1" min="0.05"></div>
+    <div class="f"><label for="ea">Energía de activación Eₐ (kJ/mol)</label><input type="number" id="ea" value="15" step="1" min="0" max="120"></div>
+    <div class="f"><label for="ea_cn">Orden en [CN⁻] (a)</label><input type="number" id="ea_cn" value="0.5" step="0.1"></div>
+    <div class="f"><label for="ea_o2">Orden en [O₂] (b)</label><input type="number" id="ea_o2" value="0.5" step="0.1"></div>
+    <div class="f"><label for="ea_d">Exponente de tamaño (c)</label><input type="number" id="ea_d" value="1" step="0.1"></div>
+    <div class="f"><label for="ea_dl">Exponente de agitación (e)</label><input type="number" id="ea_dl" value="1" step="0.1">
+      <span class="hint">k = k₀·([CN⁻]/[CN⁻]ᵣ)ᵃ·([O₂]/[O₂]ᵣ)ᵇ·(d₅₀ᵣ/d₅₀)ᶜ·(δᵣ/δ)ᵉ·exp[−Eₐ/R(1/T−1/Tᵣ)]. Referencia: 400 mg/L NaCN, pH 11, 8 mg/L O₂, 25 °C, 25 µm, 50 µm.</span></div>
+  </fieldset>
+  <div class="row" style="margin-top:8px"><button id="reset">Restablecer valores</button></div>
+</aside>
+
+<main>
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button class="tab" role="tab" data-v="cinetica" aria-selected="true">Cinética</button>
+    <button class="tab" role="tab" data-v="modelos" aria-selected="false">Comparar modelos</button>
+    <button class="tab" role="tab" data-v="variables" aria-selected="false">Variables operacionales</button>
+    <button class="tab" role="tab" data-v="circuito" aria-selected="false">Circuito de tanques</button>
+    <button class="tab" role="tab" data-v="economia" aria-selected="false">Costos y economía</button>
+    <button class="tab" role="tab" data-v="calculos" aria-selected="false">Cálculos</button>
+    <button class="tab" role="tab" data-v="fundamentos" aria-selected="false">Fundamentos</button>
+  </nav>
+
+  <!-- ===================== CINÉTICA ===================== -->
+  <section class="view on" id="v-cinetica">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Extracción de oro en función del tiempo</h3>
+        <p class="cap" id="capKin"></p>
+        <div class="chart" id="chKin"></div>
+        <div class="legend" id="lgKin"></div>
+        <div class="row" style="margin-top:10px"><button id="copyKin">Copiar datos (CSV)</button><span id="copyKinOk" class="copyok"></span></div>
+      </div>
+      <div class="card">
+        <h3>Velocidad de extracción y cianuro libre</h3>
+        <p class="cap">dα/dt del modelo activo (eje izquierdo, %/h). Debajo, la concentración de NaCN en el lote cuando k꜀ &gt; 0.</p>
+        <div class="chart" id="chRate"></div>
+        <div class="chart" id="chCN" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Modelo electroquímico de difusión (Habashi–Wadsworth)</h3>
+      <p class="cap">El oro se disuelve en áreas anódicas (Au + 2CN⁻ → Au(CN)₂⁻ + e⁻) y el O₂ se reduce en áreas catódicas. Con reacciones superficiales rápidas, la velocidad la fijan la difusión de CN⁻ y de O₂ a través de la capa límite δ.</p>
+      <div class="tablewrap"><table id="tblMech"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== MODELOS ===================== -->
+  <section class="view" id="v-modelos">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3>Ajuste ideal y etapa controlante</h3>
+        <div class="row"><label for="fitTarget">Ajustar a</label>
+          <select id="fitTarget" style="width:auto"><option value="proc">Proceso simulado con los parámetros actuales</option><option value="exp">Datos experimentales</option></select></div>
+      </div>
+      <p class="cap" id="capDiag"></p>
+      <div class="kpis" id="diagKpi" style="margin-bottom:10px"></div>
+      <p class="note" id="diagNote" style="margin:0 0 10px;max-width:none;font-size:13px;color:var(--ink-2)"></p>
+      <div class="tablewrap"><table id="tblRank"></table></div>
+    </div>
+
+    <h2 style="margin:22px 0 4px">Modelos cinéticos por separado</h2>
+    <p class="cap" style="color:var(--ink-2);margin-bottom:12px" id="capGrid"></p>
+    <div class="grid2" id="modelGrid" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr))"></div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>Curvas de tiempo reducido α vs t/t₀,₅</h3>
+        <p class="cap">Cada mecanismo tiene una curva única independiente de k (Sharp et al.; Ray y Ray, tabla 2.2). Los puntos son los datos del objetivo de ajuste normalizados con su propio t₀,₅.</p>
+        <div class="chart" id="chRed"></div>
+        <div class="legend" id="lgRed"></div>
+      </div>
+      <div class="card">
+        <h3>Linealización g(α) = k·t</h3>
+        <div class="row" style="margin-bottom:6px"><label for="linModel">Función g(α)</label><select id="linModel" style="width:auto"></select></div>
+        <p class="cap" id="capLin"></p>
+        <div class="chart" id="chLin"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Datos experimentales</h3>
+      <p class="cap">Una fila por medición: tiempo (h), recuperación (%). Ejemplo: punto central de Ruiz-Córdoba et al. (2019), −200 mallas y 1,75 lb/m³ NaCN (el valor a 7,5 h es el promedio de las dos réplicas). Elige "Datos experimentales" arriba para ajustar a ellos.</p>
+      <textarea id="expData" aria-label="Datos experimentales">0, 0
+3, 73.28
+7.5, 82.08
+12, 86.40</textarea>
+      <div class="row" style="margin-top:8px">
+        <label><input type="checkbox" id="fitAinf" checked> Ajustar α∞ (extracción máxima)</label>
+        <button class="pri" id="fitBtn">Ajustar a los datos</button>
+      </div>
+      <p class="note" id="fitMsg"></p>
+    </div>
+  </section>
+
+  <!-- ===================== VARIABLES ===================== -->
+  <section class="view" id="v-variables">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3>Influencia de una variable sobre la recuperación</h3>
+        <div class="row"><label for="sensVar">Variable</label>
+          <select id="sensVar" style="width:auto">
+            <option value="cn">NaCN (mg/L)</option>
+            <option value="do">Oxígeno disuelto (mg/L)</option>
+            <option value="T">Temperatura (°C)</option>
+            <option value="ph">pH</option>
+            <option value="dl">Capa límite δ (µm)</option>
+            <option value="d50">d₅₀ de granos de oro (µm)</option>
+          </select></div>
+      </div>
+      <p class="cap" id="capSens"></p>
+      <div class="chart" id="chSens"></div>
+      <div class="legend" id="lgSens"></div>
+    </div>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>Cambio de control: CN⁻ frente a O₂</h3>
+        <p class="cap">Velocidad de disolución (mg Au/cm²·h) contra NaCN para varios niveles de oxígeno. A [CN⁻] bajo controla el cianuro; al subir, la curva se aplana y controla el O₂. La transición ocurre en D_CN[CN⁻] = 4·D_O₂[O₂], es decir [CN⁻]/[O₂] ≈ 6 molar.</p>
+        <div class="chart" id="chWad"></div>
+        <div class="legend" id="lgWad"></div>
+      </div>
+      <div class="card">
+        <h3>Temperatura: difusividad contra solubilidad del O₂</h3>
+        <p class="cap">Al calentar suben las difusividades (Stokes–Einstein) pero cae la solubilidad del O₂. Con aireación, la velocidad pasa por un máximo; con OD fijo, solo aumenta.</p>
+        <div class="chart" id="chTemp"></div>
+        <div class="legend" id="lgTemp"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CIRCUITO ===================== -->
+  <section class="view" id="v-circuito">
+    <div class="card" style="margin-bottom:16px">
+      <div class="row" style="justify-content:space-between">
+        <div><h3>Diagrama del circuito</h3><p class="cap" id="flowSub" style="margin:0"></p></div>
+        <div class="row">
+          <span class="stepper" role="group" aria-label="Número de tanques"><button id="tkMinus" aria-label="Quitar un tanque">−</button><span class="num" id="tkN" style="min-width:76px;text-align:center"></span><button id="tkPlus" aria-label="Agregar un tanque">+</button></span>
+          <label for="recov">Recuperación</label>
+          <select id="recov" style="width:auto"><option value="cil">CIL</option><option value="cip">CIP</option><option value="mc">Merrill-Crowe</option></select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;gap:10px 16px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper)">
+        <button class="switch" id="dynBtn" aria-pressed="false"><span class="knob"></span><span id="dynBtnTxt">Iniciar proceso</span></button>
+        <button id="dynReset">Reiniciar</button>
+        <label for="dynStart">Arranque</label>
+        <select id="dynStart" style="width:auto"><option value="fill">Tanques vacíos: se llenan en serie</option><option value="full">Tanques llenos de pulpa fresca</option></select>
+        <label for="dynSpeed">Velocidad</label>
+        <select id="dynSpeed" style="width:auto"><option value="auto">Automática (≈ 30 s)</option><option value="1">1 h por segundo</option><option value="2">2 h/s</option><option value="5">5 h/s</option><option value="10">10 h/s</option><option value="20">20 h/s</option></select>
+        <span class="clock" id="dynClock"></span>
+      </div>
+      <div class="row" style="margin-top:6px"><label for="dynT" style="white-space:nowrap">Tiempo de operación</label><input type="range" id="dynT" min="0" max="100" step="0.1" value="0" style="flex:1;accent-color:var(--accent)" aria-label="Tiempo de operación"></div>
+      <p class="note" id="dynNote" style="max-width:none"></p>
+      <div class="flow" id="flow" style="margin-top:6px"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h3>Arranque del circuito: variables de cada tanque en el tiempo</h3>
+      <p class="cap" id="capDyn"></p>
+      <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+        <div><p class="cap" style="margin:0"><b>Nivel de pulpa (%)</b></p><div class="chart" id="dyV"></div></div>
+        <div><p class="cap" style="margin:0"><b>Extracción de Au en el tanque (%)</b></p><div class="chart" id="dyX"></div></div>
+        <div><p class="cap" style="margin:0"><b>NaCN libre (mg/L)</b></p><div class="chart" id="dyC"></div></div>
+        <div><p class="cap" style="margin:0"><b>Au en solución (mg/L)</b></p><div class="chart" id="dyA"></div></div>
+      </div>
+      <div class="legend" id="lgDyn"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="row" style="justify-content:space-between">
+        <h3>Grano de oro dentro del circuito</h3>
+        <div class="row"><label for="gSize">Grano</label><select id="gSize" style="width:auto"></select></div>
+      </div>
+      <p class="cap" id="gCap"></p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:center">
+        <svg viewBox="0 0 320 300" role="img" aria-label="Grano de oro y capa límite" style="width:100%;max-width:420px;justify-self:center">
+          <circle id="gBl" cx="160" cy="150" r="140" style="fill:var(--s1);fill-opacity:.08;stroke:var(--s1);stroke-dasharray:4 4"/>
+          <circle id="gR0" cx="160" cy="150" r="40" style="fill:none;stroke:var(--ink-3);stroke-dasharray:3 3"/>
+          <circle id="gCore" cx="160" cy="150" r="40" style="fill:var(--accent);fill-opacity:.85;stroke:none"/>
+          <circle id="gArcC" cx="160" cy="150" r="40" style="fill:none;stroke:var(--s1);stroke-width:4"/>
+          <circle id="gArcA" cx="160" cy="150" r="40" style="fill:none;stroke:var(--s2);stroke-width:4"/>
+          <line id="gRl" x1="160" y1="150" x2="200" y2="150" style="stroke:var(--ink);stroke-width:1.2"/>
+          <text id="gRt" x="170" y="144" style="fill:var(--ink);font:11px var(--mono)">r</text>
+          <text id="gR0t" x="160" y="104" text-anchor="middle" style="fill:var(--ink-2);font:11px var(--mono)">r₀</text>
+          <text x="160" y="16" text-anchor="middle" style="fill:var(--s1);font:11px var(--body)">solución: CN⁻ y O₂</text>
+          <text id="gBlt" x="160" y="296" text-anchor="middle" style="fill:var(--s1);font:11px var(--body)">capa límite δ</text>
+          <text id="gGone" x="160" y="154" text-anchor="middle" style="fill:var(--ink-2);font:12px var(--body);display:none">grano disuelto</text>
+          <g id="gIons"></g>
+        </svg>
+        <div>
+          <p class="cap" style="margin:0 0 6px"><b>¿Qué difusión limita?</b> Capacidad de transporte a través de la capa límite, en las mismas unidades (Ray y Ray, ec. 5.23). La barra más corta controla la velocidad.</p>
+          <svg viewBox="0 0 320 150" role="img" aria-label="Comparación de transporte de CN y O2" style="width:100%">
+            <text x="0" y="22" style="fill:var(--ink-2);font:12px var(--body)">CN⁻: D_CN·[CN⁻]/δ</text>
+            <rect id="gBcn" x="0" y="30" width="200" height="22" rx="4" style="fill:var(--s2)"/>
+            <text id="gTcn" x="6" y="46" style="fill:var(--ink);font:500 11px var(--mono)"></text>
+            <text x="0" y="84" style="fill:var(--ink-2);font:12px var(--body)">O₂: 4·D_O₂·[O₂]/δ</text>
+            <rect id="gBo2" x="0" y="92" width="200" height="22" rx="4" style="fill:var(--s1)"/>
+            <text id="gTo2" x="6" y="108" style="fill:var(--ink);font:500 11px var(--mono)"></text>
+            <text id="gTctl" x="0" y="140" style="fill:var(--ink);font:500 12px var(--body)"></text>
+          </svg>
+        </div>
+      </div>
+      <div class="kpis" id="gKpi" style="margin:10px 0 0"></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Planta</h3>
+        <p class="cap">Valores por defecto: planta de 20–40 t/d con cuatro tanques Dasen SJ3.0×3.0 de 18 m³ útiles (documento del proyecto).</p>
+        <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:4px 16px">
+          <div class="f"><label for="tpd">Alimentación (t/d)</label><input type="number" id="tpd" value="30" step="1" min="1"></div>
+          <div class="f"><label for="hrs">Horas de operación por día</label><input type="number" id="hrs" value="24" step="0.5" min="1" max="24"><span class="hint">Las t/d se alimentan solo en estas horas; en la parada los tanques siguen agitándose.</span></div>
+          <div class="f"><label for="sol">Sólidos en pulpa (% p/p)</label><input type="number" id="sol" value="45" step="1" min="5" max="75"></div>
+          <div class="f"><label for="rhos">Densidad del mineral (t/m³)</label><input type="number" id="rhos" value="2.7" step="0.05" min="1"></div>
+          <div class="f"><label for="ntk">Número de tanques</label><input type="number" id="ntk" value="4" step="1" min="1" max="16"></div>
+          <div class="f"><label for="vtk">Volumen útil por tanque (m³)</label><input type="number" id="vtk" value="18" step="0.1" min="0.5"></div>
+          <div class="f"><label for="tauT">Tiempo de residencia total τ (h)</label><input type="number" id="tauT" value="32.6" step="0.5" min="1" max="400"><span class="hint" id="tauHint">Si lo cambias, se calcula el volumen de cada tanque. Si cambias tanques, volumen, alimentación o sólidos, se recalcula τ.</span></div>
+          <div class="f"><label for="dead">Zona muerta (% del volumen)</label><input type="number" id="dead" value="10" step="1" min="0" max="60"></div>
+          <div class="f"><label for="dosMode">Dosificación de NaCN</label><select id="dosMode"><option value="all">Mantener consigna en cada tanque</option><option value="t1">Solo en el tanque 1 (consigna en T1)</option><option value="dose">Dosis fija en T1 (kg/t)</option></select></div>
+          <div class="f"><label for="doseKgT">Dosis suministrada (kg NaCN/t)</label><input type="number" id="doseKgT" value="0.6" step="0.01" min="0" max="5"><span class="hint">Solo en el modo de dosis fija: el simulador calcula el CN que resulta en cada tanque.</span></div>
+          <div class="f"><label for="kcp">Consumo por cianicidas (h⁻¹)</label><input type="number" id="kcp" value="0.01" step="0.005" min="0"><input type="range" id="kcpr" min="0" max="0.1" step="0.002" value="0.01" aria-label="Consumo por cianicidas"><span class="hint">Sulfuros de Cu, Fe, Zn que forman complejos con el CN⁻.</span></div>
+          <div class="f"><label for="khcn">Pérdida de HCN por volatilización (h⁻¹)</label><input type="number" id="khcn" value="0.1" step="0.01" min="0"><span class="hint">Actúa sobre la fracción HCN, que crece al bajar el pH.</span></div>
+          <div class="f"><label for="recyc">Solución recirculada (%)</label><input type="number" id="recyc" value="0" step="5" min="0" max="95"><span class="hint">Solución estéril que vuelve con CN libre (espesador o filtro).</span></div>
+          <div class="f"><label for="cncMode">Consumo de NaCN para costos</label><select id="cncMode"><option value="calc">Calculado por el balance</option><option value="man">Ingresado manualmente</option></select></div>
+          <div class="f"><label for="cnc">Consumo de NaCN manual (kg/t)</label><input type="number" id="cnc" value="0.5" step="0.05" min="0"><input type="range" id="cncr" min="0.1" max="3" step="0.05" value="0.5" aria-label="Consumo de NaCN"></div>
+          <div class="f"><label for="cao">Consumo de cal CaO (kg/t)</label><input type="number" id="cao" value="1.2" step="0.1" min="0"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Balance de masa</h3>
+        <div class="tablewrap"><table id="tblBal"></table></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>Cianuro libre a lo largo del circuito</h3>
+        <p class="cap" id="capCN"></p>
+        <div class="chart" id="chCNt"></div>
+        <div class="legend" id="lgCNt"></div>
+      </div>
+      <div class="card">
+        <h3>¿A dónde va el NaCN?</h3>
+        <p class="cap">Balance de NaCN en estado estacionario, en kg por tonelada de mineral. Lo que entra se destruye en los tanques o sale con la solución del relave.</p>
+        <div class="kpis" id="cnKpi" style="margin:0 0 10px"></div>
+        <div class="tablewrap"><table id="tblCN"></table></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Avance de la recuperación tanque por tanque</h3>
+      <p class="cap" id="capProg"></p>
+      <div class="chart" id="chProg"></div>
+      <div class="legend" id="lgProg"></div>
+      <div class="tablewrap" style="margin-top:10px"><table id="tblProg"></table></div>
+    </div>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>Recuperación acumulada por tanque</h3>
+        <p class="cap">Modelo de flujo segregado: cada partícula sigue la cinética de lote durante su tiempo de residencia, ponderado por la DTR de N tanques en serie.</p>
+        <div class="chart" id="chTank"></div>
+      </div>
+      <div class="card">
+        <h3>Efecto del número de tanques (mismo volumen total)</h3>
+        <p class="cap">Recuperación con el volumen efectivo total repartido en N tanques iguales, frente al reactor de flujo pistón (lote) del mismo tiempo de residencia.</p>
+        <div class="chart" id="chNtk"></div>
+        <div class="legend" id="lgNtk"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Distribución de tiempos de residencia del circuito</h3>
+      <p class="cap">E(t) = tᴺ⁻¹·e^(−t/τᵢ) / [(N−1)!·τᵢᴺ]. La cola larga es la fracción que sale antes de lixiviarse y explica la pérdida frente al flujo pistón.</p>
+      <div class="chart" id="chRTD"></div>
+      <div class="legend" id="lgRTD"></div>
+    </div>
+  </section>
+
+  <!-- ===================== ECONOMÍA ===================== -->
+  <section class="view" id="v-economia">
+    <div class="kpis" id="ecoCtx"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Doré y economía</h3>
+        <p class="cap">Del oro disuelto en el circuito al doré y a su valor. Los precios son editables; verifica el precio del oro del día antes de usar los resultados.</p>
+        <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:4px 16px">
+          <div class="f"><label for="pAu">Precio del oro (US$/oz troy)</label><input type="number" id="pAu" value="4200" step="50" min="0"><input type="range" id="pAur" min="1500" max="6000" step="50" value="4200" aria-label="Precio del oro"></div>
+          <div class="f"><label for="dorePur">Oro en el doré (% p/p)</label><input type="number" id="dorePur" value="80" step="1" min="5" max="99.9"><span class="hint">Rango típico 60–90 % (documento del proyecto).</span></div>
+          <div class="f"><label for="effRec">Recuperación desde la solución (%)</label><input type="number" id="effRec" value="98" step="0.5" min="50" max="100"><span class="hint">CIL/CIP o Merrill-Crowe.</span></div>
+          <div class="f"><label for="effFun">Fundición y refinación (%)</label><input type="number" id="effFun" value="99.5" step="0.1" min="50" max="100"></div>
+          <div class="f"><label for="pay">Oro pagable por la refinería (%)</label><input type="number" id="pay" value="99" step="0.5" min="50" max="100"></div>
+          <div class="f"><label for="pCN">Precio NaCN (US$/kg)</label><input type="number" id="pCN" value="3" step="0.1" min="0"></div>
+          <div class="f"><label for="pCaO">Precio CaO (US$/kg)</label><input type="number" id="pCaO" value="0.25" step="0.05" min="0"></div>
+          <div class="f"><label for="opex">Otros costos de operación (US$/t)</label><input type="number" id="opex" value="0" step="1" min="0"><span class="hint">Energía, mano de obra, carbón, etc. 0 = solo reactivos.</span></div>
+        </div>
+        <div class="kpis" id="econKpi" style="margin:10px 0 0"></div>
+        <div class="tablewrap"><table id="tblEcon"></table></div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h3>Sensibilidad económica</h3>
+          <div class="row"><label for="econVar">Variar</label>
+            <select id="econVar" style="width:auto">
+              <option value="pAu">Precio del oro (US$/oz)</option>
+              <option value="cnc">Consumo de NaCN (kg/t)</option>
+              <option value="pCN">Precio del NaCN (US$/kg)</option>
+              <option value="head">Ley de cabeza (g/t)</option>
+              <option value="tpd">Alimentación (t/d)</option>
+            </select></div>
+        </div>
+        <p class="cap" id="capEcon"></p>
+        <div class="chart" id="chEcon"></div>
+        <div class="legend" id="lgEcon"></div>
+      </div>
+    </div>
+    <p class="note">El consumo de NaCN (calculado por el balance o manual) y el de cal se ajustan en la pestaña Circuito de tanques, ficha Planta. La extracción viene del circuito con los parámetros actuales.</p>
+  </section>
+
+  <!-- ===================== CÁLCULOS ===================== -->
+  <section class="view" id="v-calculos">
+    <div class="grid2">
+      <div class="card">
+        <h3>Energía de activación (Arrhenius)</h3>
+        <p class="cap">Una fila por ensayo: T (°C), k (h⁻¹). La pendiente de ln k contra 1/T es −Eₐ/R (Ray y Ray, ec. 1.6).</p>
+        <textarea id="arrData" aria-label="Datos de Arrhenius"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="arrGen">Generar k aparentes con el simulador</button>
+          <button class="pri" id="arrBtn">Calcular Eₐ</button>
+        </div>
+        <p class="note">El botón de generación toma k = ln 2 / t₅₀ del modelo mecanístico a 15, 25, 35 y 45 °C con las demás condiciones actuales.</p>
+        <div class="tablewrap" style="margin-top:8px"><table id="tblArr"></table></div>
+      </div>
+      <div class="card">
+        <h3>Gráfica de Arrhenius</h3>
+        <div class="chart" id="chArr"></div>
+        <p class="note">Interpretación usual: Eₐ &lt; 20 kJ/mol sugiere control por difusión; Eₐ &gt; 40 kJ/mol sugiere control químico (Ray y Ray, caps. 1 y 5).</p>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>Modelo estadístico de superficie de respuesta</h3>
+        <p class="cap">Modelo cuadrático ajustado aquí a los 16 ensayos en botella de Ruiz-Córdoba et al. (2019), mineral de Remedios (Antioquia), 33 % sólidos, pH 10,5–11,5. Válido solo dentro de los rangos ensayados.</p>
+        <div class="f"><label for="rsT">Tiempo (h)</label><input type="number" id="rsT" value="7" step="0.5" min="3" max="12"><input type="range" id="rsTr" min="3" max="12" step="0.5" value="7" aria-label="Tiempo RSM"></div>
+        <div class="f"><label for="rsM">Granulometría (malla Tyler)</label><input type="number" id="rsM" value="200" step="5" min="140" max="270"><input type="range" id="rsMr" min="140" max="270" step="5" value="200" aria-label="Malla RSM"></div>
+        <div class="f"><label for="rsC">NaCN (lb/m³)</label><input type="number" id="rsC" value="2.5" step="0.05" min="1" max="2.5"><input type="range" id="rsCr" min="1" max="2.5" step="0.05" value="2.5" aria-label="NaCN RSM"></div>
+        <div class="kpis" style="margin:8px 0" id="rsKpi"></div>
+        <details><summary>Coeficientes del modelo (variables codificadas)</summary><div class="tablewrap"><table id="tblRS"></table></div></details>
+      </div>
+      <div class="card">
+        <h3>Recuperación predicha por el modelo estadístico</h3>
+        <p class="cap">Curvas a la concentración de NaCN elegida; los puntos son los ensayos realizados a esa misma concentración.</p>
+        <div class="chart" id="chRS"></div>
+        <div class="legend" id="lgRS"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FUNDAMENTOS ===================== -->
+  <section class="view" id="v-fundamentos">
+    <div class="card theory">
+      <h2>Fundamentos y ecuaciones del simulador</h2>
+
+      <h3>1. Reacción de cianuración</h3>
+      <p>Ecuación de Elsner, usada en el proyecto:</p>
+      <div class="eq">4Au + 8NaCN + O₂ + 2H₂O → 4Na[Au(CN)₂] + 4NaOH</div>
+      <p>Semirreacciones electroquímicas (Ray y Ray, cap. 5): ánodo Au + 2CN⁻ → Au(CN)₂⁻ + e⁻; cátodo O₂ + 2H₂O + 4e⁻ → 4OH⁻ (o vía H₂O₂ según Bodlaender).</p>
+
+      <h3>2. Grado de reacción y forma general</h3>
+      <div class="eq">α = (C₀ − C)/(C₀ − C∞)  ·  dα/dt = k·f(α)  ·  g(α) = ∫dα/f(α) = k·t</div>
+      <p>Con α adimensional, k tiene unidades de tiempo⁻¹ para cualquier orden (Ray y Ray, cap. 2). En el simulador la extracción es α_Au = α∞·f(k·t), con α∞ = 1 − fracción no lixiviable.</p>
+
+      <h3>3. Modelos cinéticos implementados</h3>
+      <div class="tablewrap"><table>
+        <tr><th>Código</th><th>Mecanismo</th><th>g(α) = k·t</th><th>Fuente</th></tr>
+        <tr><td>R1</td><td>Interfase, placa (orden cero)</td><td class="num">α</td><td>Ec. 2.14, 3.17</td></tr>
+        <tr><td>R2</td><td>Interfase, cilindro</td><td class="num">1 − (1−α)^½</td><td>Ec. 3.16</td></tr>
+        <tr><td>R3</td><td>Interfase, esfera (núcleo decreciente)</td><td class="num">1 − (1−α)^⅓</td><td>Ec. 3.15 (McKewan)</td></tr>
+        <tr><td>F1</td><td>Primer orden / transferencia de masa en película / reacción interna total</td><td class="num">−ln(1−α)</td><td>Ec. 2.16, 3.37, 5.12</td></tr>
+        <tr><td>F2</td><td>Segundo orden</td><td class="num">α/(1−α)</td><td>Ec. 2.5 con n = 2</td></tr>
+        <tr><td>D3</td><td>Difusión en capa de producto (Jander)</td><td class="num">[1 − (1−α)^⅓]²</td><td>Tabla 2.2</td></tr>
+        <tr><td>D4</td><td>Difusión en capa de producto (Ginstling–Brounshtein)</td><td class="num">1 − 2α/3 − (1−α)^⅔</td><td>Tabla 2.2</td></tr>
+        <tr><td>JMA</td><td>Nucleación y crecimiento (Johnson–Mehl–Avrami)</td><td class="num">[−ln(1−α)]^(1/n)</td><td>Ec. 2.38–2.39</td></tr>
+        <tr><td>MEC</td><td>Difusión electroquímica + núcleo decreciente polidisperso</td><td class="num">ver §4</td><td>Ec. 5.23, 3.12, 3.19</td></tr>
+      </table></div>
+
+      <h3>4. Modelo mecanístico (difusión de CN⁻ y O₂)</h3>
+      <p>Igualando la velocidad de las áreas anódicas y catódicas (Ray y Ray, ec. 5.23) se obtiene el flujo de oro por unidad de área:</p>
+      <div class="eq">J = 2·D_CN·D_O₂·[CN⁻]·[O₂] / { δ·( D_CN·[CN⁻] + 4·D_O₂·[O₂] ) }   [mol Au/cm²·s]</div>
+      <p>Límites: si [CN⁻] es bajo, J = D_CN[CN⁻]/(2δ) (ec. 5.24); si es alto, J = 2D_O₂[O₂]/δ (ec. 5.25). D_CN = 1,83×10⁻⁵ y D_O₂ = 2,76×10⁻⁵ cm²/s a 25 °C; δ entre 2×10⁻³ y 9×10⁻³ cm según la agitación.</p>
+      <p>Con J constante sobre un grano esférico el radio decrece linealmente (ec. 3.12):</p>
+      <div class="eq">dr/dt = −J·M_Au/ρ_Au  →  α_i = 1 − (1 − s/r₀,ᵢ)³,   s(t) = ∫ J·M_Au/ρ_Au dt</div>
+      <p>Para una población de granos se suma por clases ponderadas en masa (ec. 3.19), con distribución log-normal (d₅₀, σg). Una población polidispersa no sigue una sola ecuación R3, por eso la curva muestra una cola lenta.</p>
+      <p>Correcciones de condiciones: cianuro libre [CN⁻] = [NaCN]/(1 + 10^(pKa − pH)) con pKa(HCN) = 9,21; difusividades D(T) = D₂₅·(T/298,15)·(μ₂₅/μ_T) con μ_T = 2,414×10⁻⁵·10^(247,8/(T−140)) Pa·s; saturación de O₂ en agua pura a 1 atm (Benson y Krause, T en K) ln C* = −139,344 + 1,5757×10⁵/T − 6,6423×10⁷/T² + 1,2438×10¹⁰/T³ − 8,6219×10¹¹/T⁴ mg/L, aceptable hasta unos 60 °C (no corrige la presión de vapor).</p>
+
+      <h3>5. Modelos empíricos con efecto de las variables</h3>
+      <p>Siguiendo la estructura de Bazin et al. (2007), k = K·g(d)·g(CN)·g(O₂)·g(agitación):</p>
+      <div class="eq">k = k₀·([CN⁻]/[CN⁻]ᵣ)ᵃ·([O₂]/[O₂]ᵣ)ᵇ·(d₅₀ᵣ/d₅₀)ᶜ·(δᵣ/δ)ᵉ·exp[−(Eₐ/R)(1/T − 1/Tᵣ)],   k₀ = g(0,5)/t₅₀ᵣ</div>
+      <p>c = 1 reproduce k ∝ 1/r₀ del control interfacial (ec. 3.15); e = 1 reproduce h_m = D/δ (ec. 5.12); a = b = ½ corresponde al régimen intermedio de la ec. 5.26. Cuando k varía en el tiempo (consumo de cianuro), se usa g(α) = ∫k·dt.</p>
+
+      <h3>6. Arrhenius</h3>
+      <div class="eq">k = A·exp(−Eₐ/RT)  →  ln k = ln A − (Eₐ/R)·(1/T)</div>
+
+      <h3>7. Circuito de tanques agitados</h3>
+      <p>DTR de N tanques iguales en serie con τᵢ = V·(1 − f_muerta)/Q. Para sólidos se usa el modelo de flujo segregado (Levenspiel):</p>
+      <div class="eq">X̄ = ∫₀^∞ α(t)·E_N(t) dt,   E_N(t) = tᴺ⁻¹·e^(−t/τᵢ) / [(N−1)!·τᵢᴺ]</div>
+      <p>Operación intermitente (h horas de alimentación por día): mientras alimenta, el caudal es (t/d)/h; en la parada no hay flujo pero la lixiviación continúa. El cálculo en estado estacionario usa el caudal promedio diario (equivalente continuo) y la animación del arranque resuelve las paradas; la recuperación con paradas se reporta como el promedio de lo descargado en las últimas 24 h.</p>
+      <p>Pulpa: volumen por tonelada de sólido = 1/ρs + (1 − Cw)/Cw (m³/t). Solución rica: Au disuelto (g/h) / agua (m³/h) = mg/L.</p>
+
+      <h3>7b. Balance de cianuro tanque a tanque</h3>
+      <p>Cada tanque es un reactor de mezcla completa para la solución. En estado estacionario, con pérdidas de primer orden por cianicidas y por volatilización del HCN:</p>
+      <div class="eq">C_i = (C_{i−1} + D_i) / (1 + k_d·τ_i),   k_d = k_cian + k_HCN·[1 − 1/(1 + 10^(pKa − pH))]</div>
+      <p>D_i es la adición de NaCN en el tanque i (para reponer la consigna, o solo en T1). El NaCN agregado se reparte en: destruido por cianicidas, perdido como HCN y el que sale con la solución del relave (C_N·Q_w·(1 − r), con r la fracción recirculada). La velocidad de lixiviación de cada tanque se evalúa con su C_i, y cada partícula acumula Θ = Σ k(C_i)·t_i con t_i ~ Exp(τ_i) (flujo segregado, resuelto por muestreo estratificado).</p>
+
+      <h3>8. Modelo estadístico (superficie de respuesta)</h3>
+      <p>Polinomio cuadrático completo en variables codificadas A = (t − 7,5)/4,5; B = (malla − 205)/65; C = (NaCN − 1,75)/0,75, ajustado por mínimos cuadrados a los 16 ensayos de la tabla 9 de Ruiz-Córdoba et al. (2019). El ajuste reproduce R² = 89,8 % y el óptimo de 89,35 % a 7 h, −200 mallas y 2,5 lb/m³ reportados en el artículo.</p>
+
+      <h3>Supuestos y limitaciones</h3>
+      <ul>
+        <li>Temperatura uniforme y sin limitación de reactivo en el modelo de lote, salvo el consumo de cianuro de primer orden k꜀.</li>
+        <li>El OD se mantiene constante por aireación; no se modela la transferencia gas–líquido (k_La).</li>
+        <li>No se modela la pasivación del oro, el efecto del nitrato de plomo, la cinética de los sulfuros cianicidas ni la disminución de velocidad por alcalinidad excesiva.</li>
+        <li>Los parámetros de los modelos empíricos (t₅₀ᵣ, Eₐ, a, b, c, e) deben calibrarse con pruebas de botella del mineral real.</li>
+      </ul>
+
+      <h3>Referencias</h3>
+      <ul>
+        <li>Ray, H. S. y Ray, S. (2018). <i>Kinetics of Metallurgical Processes</i>, caps. 1, 2, 3 y 5. Springer.</li>
+        <li>Bazin, C., Hodouin, D., Khalesi, M. R., Bellec, S., Egan, J. y Duchesne, C. (2007). A gold leaching simulator for training to process analysis methods. IFAC.</li>
+        <li>Yahya, F. N., Ibrahim, W. H. W., Aziz, B. A. y Suli, L. N. M. (2020). Simulation of leaching process of gold by cyanidation. <i>IOP Conf. Ser.: Mater. Sci. Eng.</i> 736, 022111.</li>
+        <li>Ruiz-Córdoba, J. A., López-Cañas, C. A., Carmona-Arango, M. E. y Bolívar-García, W. H. (2019). Modelamiento estadístico y optimización del proceso de cianuración de un mineral aurífero. <i>Rev. Fac. Ing.</i> 28(53), 33–51.</li>
+        <li>Sánchez Chacón, A. E. (1995). <i>Modelo de lixiviación en pila de menas de oro por cianuración</i>. Tesis de maestría, UAM-Iztapalapa.</li>
+        <li>Bartan, A., Blanco, G. y Vera, L. Desarrollo de un simulador para el procesamiento del oro mediante cianuración (documento del proyecto): parámetros de planta, equipos y reactivos.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</div>
+
+<script id="core">
+"use strict";
+/* ================= NÚCLEO DE CÁLCULO (funciones puras) ================= */
+const R_GAS = 8.314, M_AU = 196.97, RHO_AU = 19.3, M_NACN = 49.01, PKA_HCN = 9.21;
+const D_CN25 = 1.83e-5, D_O225 = 2.76e-5; // cm2/s
+const REF = {nacn:400, ph:11, do:8, T:25, d50:25, dl:50};
+
+const MODELS = [
+  {id:"MEC", name:"Mecanístico: difusión CN⁻/O₂ + núcleo decreciente", short:"Mecanístico", color:"--s1", dash:""},
+  {id:"F1",  name:"F1 · Primer orden (película / transferencia de masa)", short:"F1 primer orden", color:"--s2", dash:""},
+  {id:"R3",  name:"R3 · Control químico, esfera (núcleo decreciente)", short:"R3 esfera", color:"--s7", dash:""},
+  {id:"R2",  name:"R2 · Control químico, cilindro", short:"R2 cilindro", color:"--s7", dash:"7 4"},
+  {id:"R1",  name:"R1 · Control químico, placa (orden cero)", short:"R1 placa", color:"--s7", dash:"2 3"},
+  {id:"D4",  name:"D4 · Difusión en capa de producto (Ginstling–Brounshtein)", short:"D4 G–B", color:"--s3", dash:""},
+  {id:"D3",  name:"D3 · Difusión en capa de producto (Jander)", short:"D3 Jander", color:"--s3", dash:"7 4"},
+  {id:"F2",  name:"F2 · Segundo orden", short:"F2 segundo orden", color:"--s5", dash:""},
+  {id:"JMA", name:"JMA · Johnson–Mehl–Avrami (nucleación y crecimiento)", short:"JMA Avrami", color:"--s6", dash:""}
+];
+const MODEL_HINT = {
+  MEC:"Velocidad calculada desde [CN⁻], [O₂], δ, T y el tamaño de los granos; no requiere calibración.",
+  F1:"−ln(1−α) = kt. Control por transferencia de masa en la película líquida (ec. 5.12).",
+  R3:"1−(1−α)^⅓ = kt. Reacción en la interfase de una esfera que se encoge (ec. 3.15).",
+  R2:"1−(1−α)^½ = kt. Interfase de un cilindro largo (ec. 3.16).",
+  R1:"α = kt. Placa plana: área constante, orden cero (ec. 3.17, n = 1).",
+  D4:"1−2α/3−(1−α)^⅔ = kt. Difusión a través de una capa de producto en una esfera.",
+  D3:"[1−(1−α)^⅓]² = kt. Aproximación de Jander a la difusión en capa de producto.",
+  F2:"α/(1−α) = kt. Segundo orden respecto a lo no reaccionado.",
+  JMA:"[−ln(1−α)]^(1/n) = kt. n < 1 da curvas que desaceleran; n > 1, sigmoideas."
+};
+
+function clamp(x,a,b){return Math.min(b,Math.max(a,x));}
+function gFun(id, a, n){
+  a = clamp(a,0,0.999999);
+  switch(id){
+    case "R1": return a;
+    case "R2": return 1-Math.sqrt(1-a);
+    case "R3": return 1-Math.cbrt(1-a);
+    case "F1": return -Math.log(1-a);
+    case "F2": return a/(1-a);
+    case "D3": {const u=1-Math.cbrt(1-a); return u*u;}
+    case "D4": return 1-2*a/3-Math.pow(1-a,2/3);
+    case "JMA": return Math.pow(-Math.log(1-a),1/n);
+  }
+  return NaN;
+}
+function gInv(id, th, n){
+  if(!(th>0)) return 0;
+  switch(id){
+    case "R1": return Math.min(th,1);
+    case "R2": return th>=1?1:1-Math.pow(1-th,2);
+    case "R3": return th>=1?1:1-Math.pow(1-th,3);
+    case "F1": return 1-Math.exp(-th);
+    case "F2": return th/(1+th);
+    case "D3": {if(th>=1) return 1; const u=Math.sqrt(th); return 1-Math.pow(1-u,3);}
+    case "D4": {if(th>=1/3) return 1; let lo=0,hi=1; for(let i=0;i<60;i++){const m=(lo+hi)/2; if(gFun("D4",m)<th) lo=m; else hi=m;} return (lo+hi)/2;}
+    case "JMA": return 1-Math.exp(-Math.pow(th,n));
+  }
+  return NaN;
+}
+function viscW(TC){const TK=TC+273.15; return 2.414e-5*Math.pow(10,247.8/(TK-140));}
+function diffT(D25,TC){const TK=TC+273.15; return D25*(TK/298.15)*(viscW(25)/viscW(TC));}
+function o2Sat(TC){const T=TC+273.15; return Math.exp(-139.34411+1.575701e5/T-6.642308e7/T**2+1.2438e10/T**3-8.621949e11/T**4);}
+function freeFrac(ph){return 1/(1+Math.pow(10,PKA_HCN-ph));}
+function doOf(P){ return P.domode==="sat" ? o2Sat(P.T)*(P.yo2/20.9)*P.eta : P.do; }
+
+/* Flujo de Habashi–Wadsworth. nacn en mg/L, DO en mg/L -> objeto con J (mol/cm2 s) y diagnósticos */
+function wadsworth(nacn, ph, DO, TC, dl_um){
+  const cnFree_mgL = nacn*freeFrac(ph);          // como NaCN equivalente
+  const Ccn = cnFree_mgL/M_NACN/1000/1000;       // mol/cm3 de CN-
+  const Co2 = DO/32.0/1000/1000;                 // mol/cm3
+  const Dcn = diffT(D_CN25,TC), Do2 = diffT(D_O225,TC);
+  const d = dl_um*1e-4;                          // cm
+  const a = Dcn*Ccn, b = 4*Do2*Co2;
+  const J = (a+b)>0 ? 2*Dcn*Do2*Ccn*Co2/(d*(a+b)) : 0;
+  return {J, Ccn, Co2, Dcn, Do2, d, ratioDiff:a/(b||1e-30), molarRatio:Ccn/(Co2||1e-30), cnFree_mgL};
+}
+function recessRate(J){ return J*M_AU/RHO_AU*3600; } // cm/h
+
+/* Clases de tamaño de granos (log-normal en masa) */
+function grainClasses(d50, sg){
+  if(sg<=1.01) return [{r:d50*1e-4/2, w:1}];
+  const n=31, ls=Math.log(sg), out=[]; let sw=0;
+  for(let i=0;i<n;i++){const z=-3+6*i/(n-1); const w=Math.exp(-z*z/2); const d=d50*Math.exp(z*ls); out.push({r:d*1e-4/2,w}); sw+=w;}
+  out.forEach(c=>c.w/=sw); return out;
+}
+function mechBase(s, classes){ // s en cm
+  let a=0; for(const c of classes){const x=1-s/c.r; a+=c.w*(x<=0?1:1-x*x*x);} return a;
+}
+/* Factor de condiciones de los modelos empíricos */
+function condFactor(P, nacnNow){
+  const nacn = nacnNow===undefined?P.cn:nacnNow;
+  const cnR = REF.nacn*freeFrac(REF.ph), cn = Math.max(1e-6,nacn*freeFrac(P.ph));
+  const DO = Math.max(1e-6,doOf(P));
+  const TK=P.T+273.15, TR=REF.T+273.15;
+  return Math.pow(cn/cnR,P.a)*Math.pow(DO/REF.do,P.b)*Math.pow(REF.d50/P.d50,P.c)*Math.pow(REF.dl/P.dl,P.e)*Math.exp(-P.ea*1000/R_GAS*(1/TK-1/TR));
+}
+function k0Of(id,P){ return gFun(id,0.5,P.nA)/P.t50ref; }
+function kOf(id,P,nacnNow){ return k0Of(id,P)*condFactor(P,nacnNow); }
+function amax(P){ return 1-P.refr/100; }
+
+/* Velocidad "k" (unidades de Θ por hora) para cada modelo a una NaCN dada */
+function thetaRate(id,P,nacn,classes){
+  if(id==="MEC"){ const w=wadsworth(nacn,P.ph,doOf(P),P.T,P.dl); return recessRate(w.J); }
+  return kOf(id,P,nacn);
+}
+function fOf(id,theta,P,classes){ return id==="MEC" ? mechBase(theta,classes) : gInv(id,theta,P.nA); }
+
+/* Curva de lote: tiempo, α (fracción del oro total), NaCN */
+function batchCurve(id,P,tEnd,nSteps){
+  const classes=grainClasses(P.d50,P.sg), A=amax(P);
+  const t=[],a=[],c=[]; let th=0, prevK=null;
+  for(let i=0;i<=nSteps;i++){
+    const ti=tEnd*i/nSteps, ci=P.cn*Math.exp(-P.kc*ti), ki=thetaRate(id,P,ci,classes);
+    if(i>0){ th+= (prevK+ki)/2*(tEnd/nSteps); }
+    prevK=ki; t.push(ti); a.push(A*fOf(id,th,P,classes)); c.push(ci);
+  }
+  return {t,a,c};
+}
+/* α a tiempo t con condiciones constantes (para circuito, ajuste y tiempo reducido) */
+function alphaConst(id,P,t,classes,mult){
+  const k=thetaRate(id,P,P.cn,classes)*(mult||1);
+  return amax(P)*fOf(id,k*t,P,classes);
+}
+function timeTo(id,P,frac,classes){ // frac del oro total; Infinity si no se alcanza
+  const A=amax(P); if(frac>=A) return Infinity;
+  const target=frac/A, k=thetaRate(id,P,P.cn,classes); if(!(k>0)) return Infinity;
+  let th;
+  if(id==="MEC"){ let lo=0,hi=1e-4; while(mechBase(hi,classes)<target && hi<10) hi*=2; for(let i=0;i<80;i++){const m=(lo+hi)/2; if(mechBase(m,classes)<target) lo=m; else hi=m;} th=(lo+hi)/2; }
+  else th=gFun(id,target,P.nA);
+  return th/k;
+}
+function timeToBatch(curve,frac){
+  for(let i=1;i<curve.t.length;i++){ if(curve.a[i]>=frac){ const f=(frac-curve.a[i-1])/((curve.a[i]-curve.a[i-1])||1e-12); return curve.t[i-1]+f*(curve.t[i]-curve.t[i-1]); } }
+  return Infinity;
+}
+/* Tanques en serie, flujo segregado */
+function lnFact(n){let s=0; for(let i=2;i<=n;i++) s+=Math.log(i); return s;}
+function Egamma(t,N,ti){ if(t<=0) return N===1?1/ti:0; return Math.exp((N-1)*Math.log(t)-t/ti-lnFact(N-1)-N*Math.log(ti)); }
+function cstrRecovery(id,P,N,ti,classes){
+  const tEnd=ti*(N+12*Math.sqrt(N)+10), n=3000, h=tEnd/n; let s=0;
+  for(let i=0;i<=n;i++){ const t=i*h, w=(i===0||i===n)?1:(i%2?4:2); s+=w*alphaConst(id,P,t,classes)*Egamma(t,N,ti); }
+  return s*h/3;
+}
+/* Circuito con balance de cianuro tanque a tanque.
+   Cada partícula pasa t_i ~ Exp(τ_i) en cada tanque (flujo segregado); su avance Θ = Σ k(C_i)·t_i.
+   Balance de CN en estado estacionario: C_i = (C_{i-1} + adición_i)/(1 + k_d·τ_i), k_d = k_cianicidas + k_HCN·(1 − f_libre(pH)). */
+const _samp={};
+function expSamples(M,n){ const key=M+"_"+n; if(_samp[key]) return _samp[key]; let seed=12345; const rnd=()=>{seed=(seed*1103515245+12345)%2147483648; return seed/2147483648;};
+  const out=[]; for(let j=0;j<n;j++){ const u=[]; for(let k=0;k<M;k++) u.push(-Math.log((k+0.5)/M)); for(let k=M-1;k>0;k--){const r=Math.floor(rnd()*(k+1)); [u[k],u[r]]=[u[r],u[k]];} out.push(u); } _samp[key]=out; return out; }
+function circuitSim(P,n,ti,opt){
+  const o=Object.assign({mode:P.dosMode||"all",dose:P.doseKgT||0,kcp:P.kcp||0,khcn:P.khcn||0,rec:(P.recyc||0)/100,M:3000,pct:false},opt||{});
+  const classes=grainClasses(P.d50,P.sg), A=amax(P), Cw=P.sol/100, tph=P.tpd/24, Qw=tph*(1-Cw)/Cw; // m3/h
+  const fl=freeFrac(P.ph), kd=o.kcp+o.khcn*(1-fl), Cset=P.cn;
+  let Cin=0, C=[], add=[];
+  for(let it=0;it<60;it++){ C=[]; add=[]; let prev=Cin;
+    for(let i=0;i<n;i++){ let a=0, c;
+      if(o.mode==="dose"){ if(i===0) a=o.dose*1000*tph/Qw; c=(prev+a)/(1+kd*ti); }
+      else if(o.mode==="all" || i===0){ a=Math.max(0,Cset*(1+kd*ti)-prev); c=(prev+a)/(1+kd*ti); } else c=prev/(1+kd*ti);
+      C.push(c); add.push(a); prev=c; }
+    const nc=o.rec*C[n-1]; if(Math.abs(nc-Cin)<1e-6) break; Cin=nc; }
+  const k=C.map(c=>thetaRate(P.model,P,c,classes)), S=expSamples(o.M,n);
+  const th=new Float64Array(o.M), cum=[], p10=[], p50=[], p90=[], av=new Float64Array(o.M);
+  for(let i=0;i<n;i++){ let sum=0; for(let j=0;j<o.M;j++){ th[j]+=k[i]*ti*S[i][j]; const f=fOf(P.model,th[j],P,classes); av[j]=f; sum+=f; } cum.push(A*sum/o.M);
+    if(o.pct){ const sr=Array.from(av).sort((a,b)=>a-b); p10.push(A*sr[Math.floor(0.1*o.M)]); p50.push(A*sr[Math.floor(0.5*o.M)]); p90.push(A*sr[Math.floor(0.9*o.M)]); } }
+  // balance de NaCN (g/h): mg/L × m3/h = g/h
+  const g=(x)=>x*Qw, addG=add.reduce((a,b)=>a+g(b),0);
+  const destCy=C.reduce((a,c)=>a+g(o.kcp*c*ti),0), destHCN=C.reduce((a,c)=>a+g(o.khcn*(1-fl)*c*ti),0);
+  const auMolH=tph*P.head*cum[n-1]/M_AU, auNaCN=auMolH*2*M_NACN; // g/h NaCN en el complejo
+  const tail=(1-o.rec)*g(C[n-1]);
+  return {C,add,k,cum,p10,p50,p90,Qw,tph,kd,addKgT:addG/1000/tph,destCyKgT:destCy/1000/tph,destHcnKgT:destHCN/1000/tph,auKgT:auNaCN/1000/tph,tailKgT:tail/1000/tph,recKgT:o.rec*g(C[n-1])/1000/tph,Cin};
+}
+
+/* Simulación dinámica del arranque: balance de población en Θ por tanque (flujo segregado),
+   balance de CN⁻ y de Au en solución. Al inicio los tanques están llenos de pulpa fresca acondicionada. */
+function dynSim(P,n,ti,opt){
+  const o=Object.assign({NB:500,snaps:320,fill:true,hrs:24},opt||{}); const hrs=clamp(o.hrs,1,24), per=hrs<24; const feedOn=t=>!per||((t%24)<hrs-1e-9);
+  const classes=grainClasses(P.d50,P.sg), A=amax(P), id=P.model, Cw=P.sol/100, tph=P.tpd/24, Qw=tph*(1-Cw)/Cw, q=1/ti;
+  const thMax = id==="MEC" ? Math.max(...classes.map(c=>c.r))*1.0005 : gFun(id,0.998,P.nA);
+  const NB=o.NB, dTh=thMax/(NB-1), fb=new Float64Array(NB); for(let b=0;b<NB;b++) fb[b]=fOf(id,b*dTh,P,classes);
+  const fl=freeFrac(P.ph), kd=(P.kcp||0)+(P.khcn||0)*(1-fl), rec=(P.recyc||0)/100, mode=P.dosMode||"all", Cset=P.cn;
+  const doseC=(P.doseKgT||0)*1000*tph/Qw;
+  const W=[...Array(n)].map(()=>{const a=new Float64Array(NB); a[0]=1; return a;});
+  const V=Array(n).fill(o.fill?0:1);
+  const C=Array(n).fill(o.fill?0:(mode==="dose"?doseC/(1+kd*ti):Cset)), Au=Array(n).fill(0), add=Array(n).fill(0);
+  const cmax=Math.max(Cset,doseC,1); let kmax=0; for(let j=0;j<=20;j++) kmax=Math.max(kmax,thetaRate(id,P,cmax*1.05*j/20,classes));
+  const tFlow=ti*(n+6*Math.sqrt(n)+6)+(o.fill?n*ti:0), tEnd=per?tFlow*24/hrs+48:tFlow, dt=Math.min(0.04*ti,0.9*dTh/Math.max(kmax,1e-12),0.25), steps=Math.ceil(tEnd/dt), every=Math.max(1,Math.floor(steps/o.snaps));
+  const Xof=w=>{let s=0; for(let b=0;b<NB;b++) s+=w[b]*fb[b]; return A*s;};
+  const out={t:[],X:[],C:[],Au:[],V:[],add:[],flow:[],feed:[],ft:[],tEnd,ti,n,dt,fill:o.fill,hrs};
+  let ton=feedOn(0), ft=0;
+  const qinOf=i=> !ton ? 0 : i===0 ? q : (V[i-1]>=1-1e-9 ? q : 0);
+  const snap=(t)=>{out.t.push(t); out.X.push(W.map((w,i)=>V[i]>0?Xof(w):0)); out.C.push(C.slice()); out.Au.push(Au.slice()); out.V.push(V.slice());
+    out.add.push(add.map(a=>a*Qw/1000/tph)); out.flow.push(V.map((v,i)=>[qinOf(i)>0, v>=1-1e-9])); out.feed.push(ton); out.ft.push(ft);};
+  snap(0);
+  const tmp=new Float64Array(NB);
+  for(let st=1;st<=steps;st++){
+    ton=feedOn((st-1)*dt); if(ton) ft+=dt;
+    const Cin = V[n-1]>=1-1e-9 ? rec*C[n-1] : 0;
+    for(let i=n-1;i>=0;i--){
+      const w=W[i], qin=qinOf(i); if(V[i]<=0 && qin===0) continue;
+      const full=V[i]>=1-1e-9, qout= full?qin:0;
+      // entradas: pulpa (distribución en Θ), cianuro y oro en solución
+      const wIn = i===0 ? null : W[i-1];
+      const Cprev = i===0 ? Cin : C[i-1], AuIn = i===0 ? 0 : Au[i-1];
+      let CinS = Cprev; if(mode==="dose"&&i===0) CinS+=doseC;
+      if(V[i]<=1e-12){ // primer llenado: el contenido toma la composición de la entrada
+        if(wIn){ for(let b=0;b<NB;b++) w[b]=wIn[b]; } C[i]=CinS; Au[i]=AuIn; }
+      else if(qin>0){ const r=dt*qin/V[i];
+        if(wIn){ for(let b=0;b<NB;b++) w[b]+=r*(wIn[b]-w[b]); } else { for(let b=0;b<NB;b++) w[b]+=r*((b===0?1:0)-w[b]); }
+        C[i]+=r*(CinS-C[i]); Au[i]+=r*(AuIn-Au[i]); }
+      V[i]=Math.min(1,V[i]+dt*(qin-qout));
+      // control de cianuro
+      if(mode==="all" || (mode==="t1"&&i===0)){ add[i]= qin>0 ? Math.max(0,Cset*(1+kd*ti)-Cprev) : 0; C[i]=Cset; }
+      else { add[i]=(mode==="dose"&&i===0&&qin>0)?doseC:0; C[i]-=dt*kd*C[i]; }
+      // reacción: avance en Θ (upwind)
+      const k=thetaRate(id,P,Math.max(0,C[i]),classes), c=k*dt/dTh, X0=Xof(w);
+      tmp[0]=w[0]*(1-c); for(let b=1;b<NB-1;b++) tmp[b]=w[b]-c*(w[b]-w[b-1]); tmp[NB-1]=w[NB-1]+c*w[NB-2];
+      for(let b=0;b<NB;b++) w[b]=tmp[b];
+      Au[i]+=tph*P.head*(Xof(w)-X0)/Qw;
+    }
+    if(st%every===0||st===steps) snap(st*dt);
+  }
+  const L=out.t.length-1;
+  const avg=(arr)=>{ if(!per) return arr; const r=[]; for(let j=0;j<arr.length;j++){ let s=0,c=0; for(let q2=j;q2>=0&&out.t[j]-out.t[q2]<24;q2--){ if(out.feed[q2]){s+=arr[q2];c++;} } r.push(c?s/c:arr[j]);} return r; }; // promedio de lo que descarga (solo con alimentación)
+  const XN=avg(out.X.map(x=>x[n-1])), AN=avg(out.Au.map(x=>x[n-1])), Xf=XN[L], Af=AN[L]; let tss=0;
+  out.XNavg=XN; out.ANavg=AN;
+  for(let j=L;j>=0;j--){ if(out.V[j][n-1]<0.999 || Math.abs(XN[j]-Xf)>0.01*Xf || Math.abs(AN[j]-Af)>0.02*Af){ tss=out.t[Math.min(L,j+1)]; break; } }
+  out.tss=tss; const jf=out.V.findIndex(v=>v[n-1]>=0.999); out.tFull = o.fill ? (jf>=0?out.t[jf]:out.tEnd) : 0;
+  const tCut=Math.min(out.tEnd, Math.max(tss*1.3+2*ti*(per?24/hrs:1), out.tFull+2*ti*(per?24/hrs:1), per?out.tFull+72:0)); let cut=out.t.findIndex(t=>t>tCut); if(cut>0){ ["t","X","C","Au","V","add","flow","feed","ft","XNavg","ANavg"].forEach(k=>out[k]=out[k].slice(0,cut+1)); out.tEnd=out.t[cut]; }
+  return out;
+}
+
+/* Ecuaciones de cada modelo (texto) */
+function eqText(id,k,A,n){
+  const kk=k===undefined?"k":fmtN(k,4), AA=A===undefined?"α∞":fmtN(A,3), nn=fmtN(n,2);
+  const map={
+    R1:["g(α) = α/α∞ = k·t",`α(t) = ${AA}·${kk}·t   (k·t ≤ 1)`],
+    R2:["g(α) = 1 − (1 − α/α∞)^½ = k·t",`α(t) = ${AA}·[1 − (1 − ${kk}·t)²]`],
+    R3:["g(α) = 1 − (1 − α/α∞)^⅓ = k·t",`α(t) = ${AA}·[1 − (1 − ${kk}·t)³]`],
+    F1:["g(α) = −ln(1 − α/α∞) = k·t",`α(t) = ${AA}·[1 − e^(−${kk}·t)]`],
+    F2:["g(α) = (α/α∞)/(1 − α/α∞) = k·t",`α(t) = ${AA}·${kk}·t/(1 + ${kk}·t)`],
+    D3:["g(α) = [1 − (1 − α/α∞)^⅓]² = k·t",`α(t) = ${AA}·[1 − (1 − √(${kk}·t))³]`],
+    D4:["g(α) = 1 − 2α′/3 − (1 − α′)^⅔ = k·t,  α′ = α/α∞",`1 − 2α′/3 − (1 − α′)^⅔ = ${kk}·t   (implícita, α = ${AA}·α′)`],
+    JMA:[`g(α) = [−ln(1 − α/α∞)]^(1/${nn}) = k·t`,`α(t) = ${AA}·[1 − exp(−(${kk}·t)^${nn})]`],
+    MEC:["J = 2·D_CN·D_O₂·[CN⁻][O₂] / {δ·(D_CN[CN⁻] + 4·D_O₂[O₂])},  s = f·J·M_Au/ρ_Au·t",`α(t) = ${AA}·Σ wᵢ·[1 − (1 − s/rᵢ)³]${k===undefined?"":"   (f = "+kk+")"}`]
+  }; return map[id];
+}
+function fmtN(v,d){ if(!isFinite(v)) return "—"; return Number(v).toLocaleString("es-CO",{maximumFractionDigits:d,minimumFractionDigits:0}); }
+const MECH_OF={R1:"control químico en la interfase (placa)",R2:"control químico en la interfase (cilindro)",R3:"control químico en la interfase (esfera que se encoge)",F1:"transferencia de masa en la película líquida",F2:"cinética de segundo orden (empírica)",D3:"difusión en una capa de producto (Jander)",D4:"difusión en una capa de producto (Ginstling–Brounshtein)",JMA:"nucleación y crecimiento (empírica)",MEC:"difusión de CN⁻ y O₂ en la capa límite"};
+/* Curva del proceso a partir de los parámetros (modelo mecanístico) */
+function processCurve(P,npts){ const classes=grainClasses(P.d50,P.sg); const A=amax(P);
+  let tEnd=timeTo("MEC",P,0.985*A,classes); if(!isFinite(tEnd)||tEnd>P.tmax) tEnd=P.tmax; tEnd=Math.max(tEnd,0.5);
+  const d=[]; for(let i=0;i<=npts;i++){ const t=tEnd*i/npts; d.push([t,alphaConst("MEC",P,t,classes)]); } return d; }
+function apparentEa(P){ const classes=grainClasses(P.d50,P.sg), dT=5; const t1=timeTo("MEC",{...P,T:P.T-dT},0.5*amax(P),classes), t2=timeTo("MEC",{...P,T:P.T+dT},0.5*amax(P),classes);
+  const T1=P.T-dT+273.15, T2=P.T+dT+273.15; return R_GAS*Math.log(t1/t2)/(1/T1-1/T2)/1000; }
+function controlStage(P){ const w=wadsworth(P.cn,P.ph,doOf(P),P.T,P.dl); const r=w.ratioDiff;
+  if(P.cn<=0) return {key:"cn",txt:"Sin cianuro: no hay disolución",ratio:r,w};
+  if(r>3) return {key:"o2",txt:"Difusión de O₂ en la capa límite",ratio:r,w};
+  if(r<1/3) return {key:"cn",txt:"Difusión de CN⁻ en la capa límite",ratio:r,w};
+  return {key:"mix",txt:"Control mixto CN⁻ / O₂",ratio:r,w}; }
+
+/* Ajuste: minimiza SSE con α = Ainf·f(k t) */
+function golden(f,lo,hi,it){ const g=(Math.sqrt(5)-1)/2; let a=lo,b=hi,c=b-g*(b-a),d=a+g*(b-a),fc=f(c),fd=f(d);
+  for(let i=0;i<(it||60);i++){ if(fc<fd){b=d;d=c;fd=fc;c=b-g*(b-a);fc=f(c);} else {a=c;c=d;fc=fd;d=a+g*(b-a);fd=f(d);} } return (a+b)/2; }
+function fitModel(id,P,data,fitA){
+  const classes=grainClasses(P.d50,P.sg);
+  const base = id==="MEC" ? thetaRate("MEC",P,P.cn,classes) : 1;
+  const pred=(lk,A,t)=>A*fOf(id,Math.exp(lk)*base*t,P,classes);
+  const sse=(lk,A)=>{let s=0; for(const [t,y] of data){const e=y-pred(lk,A,t); s+=e*e;} return s;};
+  const bestK=(A)=>{ let bl=0,bs=Infinity; const lo=Math.log(1e-4),hi=Math.log(1e3);
+    for(let i=0;i<=80;i++){const lk=lo+(hi-lo)*i/80, v=sse(lk,A); if(v<bs){bs=v;bl=lk;}}
+    const st=(hi-lo)/80; const lk=golden(x=>sse(x,A),bl-st,bl+st,50); return lk; };
+  let A=1, lk;
+  if(fitA){ let bA=1,bs=Infinity; for(let i=0;i<=28;i++){const Ai=0.3+0.7*i/28, l=bestK(Ai), v=sse(l,Ai); if(v<bs){bs=v;bA=Ai;}}
+    A=golden(Ai=>sse(bestK(Ai),Ai),Math.max(0.3,bA-0.03),Math.min(1,bA+0.03),30); }
+  lk=bestK(A);
+  const s=sse(lk,A), ym=data.reduce((q,d)=>q+d[1],0)/data.length, sst=data.reduce((q,d)=>q+(d[1]-ym)**2,0);
+  return {id,k:Math.exp(lk),A,sse:s,r2:sst>0?1-s/sst:NaN,rmse:Math.sqrt(s/data.length),pred:(t)=>pred(lk,A,t)};
+}
+/* Regresión lineal simple */
+function linreg(x,y){const n=x.length,mx=x.reduce((a,b)=>a+b,0)/n,my=y.reduce((a,b)=>a+b,0)/n; let sxy=0,sxx=0,syy=0;
+  for(let i=0;i<n;i++){sxy+=(x[i]-mx)*(y[i]-my);sxx+=(x[i]-mx)**2;syy+=(y[i]-my)**2;} const m=sxy/sxx; return {m,b:my-m*mx,r2:sxx>0&&syy>0?(sxy*sxy)/(sxx*syy):NaN};}
+/* Mínimos cuadrados general (ecuaciones normales) */
+function lstsq(X,y){const p=X[0].length,A=[...Array(p)].map(()=>Array(p+1).fill(0));
+  for(let r=0;r<X.length;r++) for(let i=0;i<p;i++){ for(let j=0;j<p;j++) A[i][j]+=X[r][i]*X[r][j]; A[i][p]+=X[r][i]*y[r]; }
+  for(let i=0;i<p;i++){ let mx=i; for(let k=i+1;k<p;k++) if(Math.abs(A[k][i])>Math.abs(A[mx][i])) mx=k; [A[i],A[mx]]=[A[mx],A[i]];
+    for(let k=i+1;k<p;k++){const f=A[k][i]/A[i][i]; for(let j=i;j<=p;j++) A[k][j]-=f*A[i][j];} }
+  const b=Array(p).fill(0); for(let i=p-1;i>=0;i--){let s=A[i][p]; for(let j=i+1;j<p;j++) s-=A[i][j]*b[j]; b[i]=s/A[i][i];} return b;}
+const RSM_DATA=[[3,270,2.5,83.2],[3,270,1,68.48],[3,140,2.5,76.48],[7.5,270,1.75,78.4],[12,270,2.5,72],[12,200,1.75,86.4],[3,200,1.75,73.28],[12,140,2.5,81.76],[7.5,200,2.5,89.6],[3,140,1,60.96],[12,140,1,71.52],[7.5,200,1.75,83.68],[7.5,200,1,81.76],[12,270,1,82.4],[7.5,200,1.75,80.48],[7.5,140,1.75,72.8]];
+function rsmRow(t,m,c){const A=(t-7.5)/4.5,B=(m-205)/65,C=(c-1.75)/0.75; return [1,A,B,C,A*A,A*B,A*C,B*B,B*C,C*C];}
+function rsmFit(){const X=RSM_DATA.map(r=>rsmRow(r[0],r[1],r[2])), y=RSM_DATA.map(r=>r[3]); const b=lstsq(X,y);
+  const yh=X.map(r=>r.reduce((s,v,i)=>s+v*b[i],0)), ym=y.reduce((a,c)=>a+c,0)/y.length;
+  const sse=y.reduce((s,v,i)=>s+(v-yh[i])**2,0), sst=y.reduce((s,v)=>s+(v-ym)**2,0); return {b,r2:1-sse/sst,rmse:Math.sqrt(sse/(y.length-10))};}
+function rsmPred(b,t,m,c){return rsmRow(t,m,c).reduce((s,v,i)=>s+v*b[i],0);}
+if(typeof module!=="undefined") module.exports={gFun,gInv,wadsworth,recessRate,grainClasses,mechBase,batchCurve,alphaConst,timeTo,cstrRecovery,circuitSim,dynSim,fitModel,processCurve,apparentEa,controlStage,eqText,rsmFit,rsmPred,o2Sat,diffT,viscW,condFactor,kOf,Egamma};
+</script>
+
+<script>
+"use strict";
+/* ================= GRÁFICAS SVG ================= */
+const NS="http://www.w3.org/2000/svg";
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); if(parent) parent.appendChild(e); return e;}
+function niceTicks(lo,hi,n){ if(!(hi>lo)){hi=lo+1;} const span=hi-lo, step0=span/(n||5), mag=Math.pow(10,Math.floor(Math.log10(step0))), r=step0/mag;
+  const step=(r<1.5?1:r<3?2:r<7?5:10)*mag; const t=[]; for(let v=Math.ceil(lo/step-1e-9)*step; v<=hi+step*1e-6; v+=step) t.push(+v.toFixed(10)); t.dec=Math.max(0,-Math.floor(Math.log10(step)+1e-9)); return t; }
+function fmt(v,d){ if(!isFinite(v)) return "—"; const a=Math.abs(v); if(d===undefined) d = a>=100?0:a>=10?1:a>=1?2:3; return v.toLocaleString("es-CO",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function fmtSci(v){ if(!isFinite(v)) return "—"; if(v===0) return "0"; const e=Math.floor(Math.log10(Math.abs(v))); const m=v/Math.pow(10,e); return m.toFixed(2).replace(".",",")+"×10"+String(e).replace("-","⁻").replace(/\d/g,d=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[d]); }
+
+function lineChart(host,o){
+  host.innerHTML=""; const W=Math.max(320,host.clientWidth||640), H=o.height||300, m={l:56,r:16,t:12,b:42}; if(o.padL) m.l=o.padL;
+  const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":o.title||"Gráfica"},host);
+  const all=o.series.flatMap(s=>s.band?s.pts.flatMap(p=>[[p[0],p[1]],[p[0],p[2]]]):s.pts).filter(p=>isFinite(p[0])&&isFinite(p[1]));
+  let x0=o.xMin!==undefined?o.xMin:Math.min(...all.map(p=>p[0])), x1=o.xMax!==undefined?o.xMax:Math.max(...all.map(p=>p[0]));
+  let y0=o.yMin!==undefined?o.yMin:Math.min(0,...all.map(p=>p[1])), y1=o.yMax!==undefined?o.yMax:Math.max(...all.map(p=>p[1]))*1.05;
+  if(!(x1>x0)) x1=x0+1; if(!(y1>y0)) y1=y0+1;
+  const xt=niceTicks(x0,x1,o.xTicks||6), yt=niceTicks(y0,y1,5);
+  if(o.xMax===undefined) x1=Math.max(x1,xt[xt.length-1]); if(o.yMax===undefined) y1=Math.max(y1,yt[yt.length-1]);
+  const X=v=>m.l+(v-x0)/(x1-x0)*(W-m.l-m.r), Y=v=>H-m.b-(v-y0)/(y1-y0)*(H-m.t-m.b);
+  const g=el("g",{},svg);
+  yt.forEach(v=>{ if(v<y0-1e-9||v>y1+1e-9) return; el("line",{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),style:"stroke:var(--line);stroke-width:1"},g);
+    const t=el("text",{x:m.l-8,y:Y(v)+4,"text-anchor":"end",style:"fill:var(--ink-3);font:11px var(--mono)"},g); t.textContent=o.fmtY?o.fmtY(v):fmt(v,yt.dec); });
+  xt.forEach(v=>{ if(v<x0-1e-9||v>x1+1e-9) return; const t=el("text",{x:X(v),y:H-m.b+16,"text-anchor":"middle",style:"fill:var(--ink-3);font:11px var(--mono)"},g); t.textContent=o.fmtX?o.fmtX(v):fmt(v,xt.dec);
+    el("line",{x1:X(v),x2:X(v),y1:H-m.b,y2:H-m.b+4,style:"stroke:var(--ink-3)"},g); });
+  const yb=(0>=y0&&0<=y1)?0:y0; el("line",{x1:m.l,x2:W-m.r,y1:Y(yb),y2:Y(yb),style:"stroke:var(--ink-3);stroke-width:1"},g);
+  const xl=el("text",{x:(m.l+W-m.r)/2,y:H-6,"text-anchor":"middle",style:"fill:var(--ink-2);font:12px var(--body)"},g); xl.textContent=o.xLabel||"";
+  const yl=el("text",{x:14,y:(m.t+H-m.b)/2,"text-anchor":"middle",transform:`rotate(-90 14 ${(m.t+H-m.b)/2})`,style:"fill:var(--ink-2);font:12px var(--body)"},g); yl.textContent=o.yLabel||"";
+  (o.vlines||[]).forEach(v=>{ if(!(v.x>=x0&&v.x<=x1)) return; el("line",{x1:X(v.x),x2:X(v.x),y1:m.t,y2:H-m.b,style:"stroke:var(--ink-3);stroke-dasharray:3 3"},g);
+    if(v.label){const t=el("text",{x:X(v.x)+4,y:H-m.b-6,style:"fill:var(--ink-2);font:11px var(--body)"},g); t.textContent=v.label;} });
+  (o.hlines||[]).forEach(v=>{ if(!(v.y>=y0&&v.y<=y1)) return; el("line",{x1:m.l,x2:W-m.r,y1:Y(v.y),y2:Y(v.y),style:"stroke:var(--ink-3);stroke-dasharray:3 3"},g);
+    if(v.label){const t=el("text",{x:v.left?m.l+6:W-m.r-4,y:Y(v.y)+(v.below?14:-5),"text-anchor":v.left?"start":"end",style:"fill:var(--ink-2);font:11px var(--body)"},g); t.textContent=v.label;} });
+  (o.shade||[]).forEach(([a,b])=>{ if(b<=x0||a>=x1) return; const xa=X(Math.max(a,x0)), xb=X(Math.min(b,x1)); el("rect",{x:xa,y:m.t,width:Math.max(0,xb-xa),height:H-m.t-m.b,style:"fill:var(--ink-3);opacity:.1"},g); });
+  const clipId="c"+Math.random().toString(36).slice(2); const cp=el("clipPath",{id:clipId},svg); el("rect",{x:m.l,y:m.t-4,width:W-m.l-m.r,height:H-m.t-m.b+8},cp);
+  const plot=el("g",{"clip-path":`url(#${clipId})`},svg);
+  o.series.forEach(s=>{
+    if(s.band){ const p=s.pts; if(!p.length) return; const d="M"+p.map(q=>X(q[0])+","+Y(q[2])).join("L")+"L"+p.slice().reverse().map(q=>X(q[0])+","+Y(q[1])).join("L")+"Z"; el("path",{d,style:`fill:var(${s.color});opacity:.16`},plot); return; }
+    const pts=s.pts.filter(p=>isFinite(p[0])&&isFinite(p[1]));
+    if(s.dots){ pts.forEach(p=>el("circle",{cx:X(p[0]),cy:Y(p[1]),r:s.r||4.5,style:`fill:var(${s.color});stroke:var(--panel);stroke-width:2`},plot)); return; }
+    if(s.area){ const d="M"+X(pts[0][0])+","+Y(yb)+pts.map(p=>"L"+X(p[0])+","+Y(p[1])).join("")+"L"+X(pts[pts.length-1][0])+","+Y(yb)+"Z"; el("path",{d,style:`fill:var(${s.color});opacity:.12`},plot); }
+    const d=pts.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join("");
+    el("path",{d,style:`fill:none;stroke:var(${s.color});stroke-width:${s.w||2};stroke-linejoin:round;stroke-linecap:round;${s.dash?`stroke-dasharray:${s.dash}`:""}`},plot);
+  });
+  (o.markers||[]).forEach(p=>{ if(!(p.x>=x0&&p.x<=x1)) return; el("circle",{cx:X(p.x),cy:Y(p.y),r:5,style:`fill:var(${p.color||"--accent"});stroke:var(--panel);stroke-width:2`},svg);
+    if(p.label){const t=el("text",{x:X(p.x)+(X(p.x)>W-140?-8:8),y:Y(p.y)+(p.below?18:-8),"text-anchor":X(p.x)>W-140?"end":"start",style:"fill:var(--ink);font:500 11px var(--body)"},svg); t.textContent=p.label;} });
+  // capa de interacción
+  const tip=document.createElement("div"); tip.className="tip"; host.appendChild(tip);
+  const cross=el("line",{y1:m.t,y2:H-m.b,style:"stroke:var(--ink-3);stroke-width:1;display:none"},svg);
+  const ov=el("rect",{x:m.l,y:m.t,width:W-m.l-m.r,height:H-m.t-m.b,style:"fill:transparent"},svg);
+  const lineSeries=o.series.filter(s=>!s.noTip&&!s.band);
+  const move=(ev)=>{ const r=svg.getBoundingClientRect(), sx=(ev.clientX-r.left)*W/r.width; const xv=x0+(sx-m.l)/(W-m.l-m.r)*(x1-x0);
+    let rows=[]; let xs=null;
+    lineSeries.forEach(s=>{ let best=null,bd=Infinity; for(const p of s.pts){const dd=Math.abs(p[0]-xv); if(dd<bd){bd=dd;best=p;}} if(best && (!s.dots || bd<(x1-x0)*0.03)){ rows.push([s,best]); if(!s.dots&&xs===null) xs=best[0]; } });
+    if(!rows.length){tip.style.display="none";cross.style.display="none";return;}
+    const cx = xs!==null?xs:rows[0][1][0];
+    cross.setAttribute("x1",X(cx)); cross.setAttribute("x2",X(cx)); cross.style.display="";
+    tip.innerHTML=`<b>${o.xName||o.xLabel||"x"}: ${(o.fmtTipX||fmt)(cx)}</b><br>`+rows.map(([s,p])=>`<span style="color:var(${s.color})">●</span> ${s.name}: ${(o.fmtTipY||fmt)(p[1])}`).join("<br>");
+    tip.style.display="block"; const hr=host.getBoundingClientRect(); let lx=ev.clientX-hr.left+14; if(lx+tip.offsetWidth>hr.width) lx=ev.clientX-hr.left-tip.offsetWidth-14; tip.style.left=lx+"px"; tip.style.top=Math.max(0,ev.clientY-hr.top-tip.offsetHeight/2)+"px"; };
+  ov.addEventListener("mousemove",move); ov.addEventListener("mouseleave",()=>{tip.style.display="none";cross.style.display="none";});
+}
+function barChart(host,o){
+  host.innerHTML=""; const W=Math.max(320,host.clientWidth||640), H=o.height||280, m={l:56,r:16,t:22,b:42};
+  const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":o.title||"Gráfica de barras"},host);
+  const n=o.values.length, y1=o.yMax||Math.max(...o.values)*1.1, yt=niceTicks(0,y1,5), ym=Math.max(y1,yt[yt.length-1]);
+  const Y=v=>H-m.b-v/ym*(H-m.t-m.b), bw=(W-m.l-m.r)/n;
+  yt.forEach(v=>{ el("line",{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),style:"stroke:var(--line)"},svg); const t=el("text",{x:m.l-8,y:Y(v)+4,"text-anchor":"end",style:"fill:var(--ink-3);font:11px var(--mono)"},svg); t.textContent=fmt(v,yt.dec); });
+  const tip=document.createElement("div"); tip.className="tip"; host.appendChild(tip);
+  o.values.forEach((v,i)=>{ const x=m.l+i*bw+bw*0.18, w=bw*0.64, y=Y(v), h=H-m.b-y;
+    const r=Math.min(4,w/2,h); const p=`M${x},${H-m.b}V${y+r}Q${x},${y} ${x+r},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${H-m.b}Z`;
+    const b=el("path",{d:p,style:`fill:var(${o.color||"--s1"})`},svg);
+    const t=el("text",{x:x+w/2,y:y-6,"text-anchor":"middle",style:"fill:var(--ink);font:500 11px var(--mono)"},svg); t.textContent=fmt(v,1);
+    const l=el("text",{x:x+w/2,y:H-m.b+16,"text-anchor":"middle",style:"fill:var(--ink-3);font:11px var(--body)"},svg); l.textContent=o.labels[i];
+    const hit=el("rect",{x:m.l+i*bw,y:m.t,width:bw,height:H-m.t-m.b,style:"fill:transparent"},svg);
+    hit.addEventListener("mousemove",ev=>{tip.innerHTML=o.tip(i); tip.style.display="block"; const hr=host.getBoundingClientRect(); let lx=ev.clientX-hr.left+12; if(lx+tip.offsetWidth>hr.width) lx-=tip.offsetWidth+24; tip.style.left=lx+"px"; tip.style.top=(ev.clientY-hr.top-30)+"px"; b.style.opacity=.85;});
+    hit.addEventListener("mouseleave",()=>{tip.style.display="none"; b.style.opacity=1;});
+  });
+  (o.hlines||[]).forEach(v=>{ el("line",{x1:m.l,x2:W-m.r,y1:Y(v.y),y2:Y(v.y),style:"stroke:var(--ink-2);stroke-dasharray:4 3"},svg); const t=el("text",{x:m.l+6,y:Y(v.y)-5,"text-anchor":"start",style:"fill:var(--ink-2);font:11px var(--body)"},svg); t.textContent=v.label; });
+  const xl=el("text",{x:(m.l+W-m.r)/2,y:H-6,"text-anchor":"middle",style:"fill:var(--ink-2);font:12px var(--body)"},svg); xl.textContent=o.xLabel||"";
+  const yl=el("text",{x:14,y:(m.t+H-m.b)/2,"text-anchor":"middle",transform:`rotate(-90 14 ${(m.t+H-m.b)/2})`,style:"fill:var(--ink-2);font:12px var(--body)"},svg); yl.textContent=o.yLabel||"";
+}
+function legend(host,items){ host.innerHTML=items.map(it=>`<span><svg viewBox="0 0 22 8">${it.dots?`<circle cx="11" cy="4" r="3.5" style="fill:var(${it.color})"/>`:`<line x1="1" y1="4" x2="21" y2="4" style="stroke:var(${it.color});stroke-width:2.5;${it.dash?`stroke-dasharray:${it.dash}`:""}"/>`}</svg>${it.name}</span>`).join(""); }
+
+/* ================= ESTADO E INTERFAZ ================= */
+const $=id=>document.getElementById(id);
+const IDS=["model","nA","head","d50","sg","refr","cn","ph","domode","do","yo2","eta","kc","T","dl","tmax","teval","target","t50ref","ea","ea_cn","ea_o2","ea_d","ea_dl","tpd","sol","rhos","ntk","vtk","dead","cnc","cao","pAu","dorePur","effRec","effFun","pay","pCN","pCaO","opex","dosMode","kcp","khcn","recyc","cncMode","doseKgT","hrs"];
+const DEFAULTS={};
+const PAIRS=[["kcp","kcpr"],["cnc","cncr"],["pAu","pAur"],["d50","d50r"],["cn","cnr"],["ph","phr"],["do","dor"],["T","Tr"],["dl","dlr"],["rsT","rsTr"],["rsM","rsMr"],["rsC","rsCr"]];
+function readP(){ const v=id=>{const x=parseFloat($(id).value); return isFinite(x)?x:parseFloat(DEFAULTS[id]);};
+  return {model:$("model").value,nA:v("nA"),head:v("head"),d50:Math.max(0.5,v("d50")),sg:Math.max(1,v("sg")),refr:clamp(v("refr"),0,99),cn:Math.max(0,v("cn")),ph:v("ph"),domode:$("domode").value,do:Math.max(0.01,v("do")),yo2:v("yo2"),eta:v("eta"),kc:Math.max(0,v("kc")),T:v("T"),dl:Math.max(1,v("dl")),
+    tmax:Math.max(1,v("tmax")),teval:Math.max(0.1,v("teval")),target:clamp(v("target"),1,99.9),t50ref:Math.max(0.01,v("t50ref")),ea:v("ea"),a:v("ea_cn"),b:v("ea_o2"),c:v("ea_d"),e:v("ea_dl"),
+    tpd:Math.max(0.1,v("tpd")),sol:clamp(v("sol"),1,90),rhos:Math.max(0.5,v("rhos")),ntk:Math.round(clamp(v("ntk"),1,30)),vtk:Math.max(0.01,v("vtk")),dead:clamp(v("dead"),0,95),cnc:Math.max(0,v("cnc")),cao:Math.max(0,v("cao")),pAu:Math.max(0,v("pAu")),dorePur:clamp(v("dorePur"),1,100),effRec:clamp(v("effRec"),0,100),effFun:clamp(v("effFun"),0,100),pay:clamp(v("pay"),0,100),pCN:Math.max(0,v("pCN")),pCaO:Math.max(0,v("pCaO")),opex:Math.max(0,v("opex")),dosMode:$("dosMode").value,kcp:Math.max(0,v("kcp")),khcn:Math.max(0,v("khcn")),recyc:clamp(v("recyc"),0,95),cncMode:$("cncMode").value,doseKgT:Math.max(0,v("doseKgT")),hrs:clamp(v("hrs"),1,24)}; }
+const mById=id=>MODELS.find(m=>m.id===id);
+let shown=new Set(["MEC","F1","R3","D4","JMA","F2"]);
+let fitResults=null;
+
+function initUI(){
+  $("model").innerHTML=MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join("");
+  $("linModel").innerHTML=MODELS.filter(m=>m.id!=="MEC").map(m=>`<option value="${m.id}">${m.short}: g(α)</option>`).join("");
+  $("linModel").value="F1";
+  IDS.forEach(id=>DEFAULTS[id]=$(id).value);
+  ["rsT","rsM","rsC"].forEach(id=>DEFAULTS[id]=$(id).value);
+  const RANGES={nA:[0.2,3,0.05],head:[0.5,20,0.05],sg:[1,4,0.1],refr:[0,50,0.5],yo2:[5,100,0.5],eta:[0.3,1,0.01],kc:[0,0.2,0.005],tmax:[4,200,1],teval:[1,120,0.5],target:[50,99.5,0.5],
+    t50ref:[0.2,24,0.1],ea:[0,80,1],ea_cn:[0,2,0.05],ea_o2:[0,2,0.05],ea_d:[0,3,0.05],ea_dl:[0,2,0.05],tpd:[5,200,1],hrs:[1,24,0.5],sol:[20,60,1],rhos:[2,4.5,0.05],ntk:[1,16,1],vtk:[2,200,0.5],tauT:[4,200,0.5],dead:[0,40,1],cao:[0,5,0.1],
+    dorePur:[40,99,1],effRec:[80,100,0.5],effFun:[90,100,0.1],pay:[90,100,0.5],pCN:[0.5,8,0.1],pCaO:[0.05,1,0.05],opex:[0,150,1],khcn:[0,1,0.01],recyc:[0,95,1],doseKgT:[0.05,3,0.01]};
+  Object.entries(RANGES).forEach(([id,[lo,hi,st]])=>{ const inp=$(id); if(!inp) return; const r=document.createElement("input"); r.type="range"; r.id=id+"_sl"; r.min=lo; r.max=hi; r.step=st; r.value=inp.value; r.setAttribute("aria-label",(inp.labels&&inp.labels[0]?inp.labels[0].textContent:id)); inp.insertAdjacentElement("afterend",r); PAIRS.push([id,id+"_sl"]); });
+  PAIRS.forEach(([a,b])=>{ $(b).addEventListener("input",()=>{$(a).value=$(b).value; $(a).dispatchEvent(new Event("input"));}); $(a).addEventListener("input",()=>{$(b).value=$(a).value; schedule();}); });
+  IDS.forEach(id=>$(id).addEventListener("input",()=>{fitResults=null; schedule();}));
+  $("expData").addEventListener("input",()=>{fitResults=null;}); $("fitAinf").addEventListener("change",()=>{fitResults=null; schedule();});
+  $("reset").addEventListener("click",()=>{ IDS.concat(["rsT","rsM","rsC"]).forEach(id=>$(id).value=DEFAULTS[id]); PAIRS.forEach(([a,b])=>$(b).value=$(a).value); fitResults=null; schedule(); });
+  $("sensVar").addEventListener("change",schedule); $("linModel").addEventListener("change",schedule);
+  $("fitBtn").addEventListener("click",()=>{ $("fitTarget").value="exp"; fitResults=null; schedule();}); $("fitTarget").addEventListener("change",()=>{fitResults=null; schedule();});
+  $("arrBtn").addEventListener("click",renderArr); $("arrGen").addEventListener("click",()=>{genArr(); renderArr();});
+  $("copyKin").addEventListener("click",copyKin);
+  const stepN=d=>{ const v=clamp(Math.round(parseFloat($("ntk").value)||1)+d,1,16); $("ntk").value=v; $("ntk").dispatchEvent(new Event("input")); };
+  $("tkMinus").addEventListener("click",()=>stepN(-1)); $("tkPlus").addEventListener("click",()=>stepN(1)); $("tauT").addEventListener("input",tauEdited); $("recov").addEventListener("change",schedule); $("dosMode").addEventListener("change",schedule); $("cncMode").addEventListener("change",schedule); $("econVar").addEventListener("change",schedule);
+  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>showTab(t.dataset.v,true)));
+  window.addEventListener("hashchange",()=>showTab(location.hash.slice(1),false));
+  let rt; window.addEventListener("resize",()=>{clearTimeout(rt); rt=setTimeout(render,120);});
+}
+const VIEWS=["cinetica","modelos","variables","circuito","economia","calculos","fundamentos"];
+function showTab(v,push){ if(!VIEWS.includes(v)) v="cinetica";
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.v===v?"true":"false"));
+  document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
+  if(push){ try{history.replaceState(null,"","#"+v);}catch(e){} }
+  render(); }
+let pend=false; function schedule(){ if(pend) return; pend=true; requestAnimationFrame(()=>{pend=false; render();}); }
+function activeView(){ const s=document.querySelector(".view.on"); return s?s.id.slice(2):"cinetica"; }
+
+function tauOf(P){ const Cw=P.sol/100, Q=P.tpd/24*(1/P.rhos+(1-Cw)/Cw); return {Q, tau:P.ntk*P.vtk*(1-P.dead/100)/Q}; }
+function syncTau(P){ const ae=document.activeElement; if(ae&&(ae.id==="tauT"||ae.id==="tauT_sl")) return; const {tau}=tauOf(P);
+  $("tauT").value=tau.toFixed(1); if($("tauT_sl")) $("tauT_sl").value=tau; $("tauHint").textContent=`${fmt(tau/P.ntk,2)} h por tanque. Si cambias τ, se calcula el volumen de cada tanque; si cambias tanques, volumen, alimentación o sólidos, se recalcula τ.`; }
+function tauEdited(){ const P=readP(), t=parseFloat($("tauT").value); if(!(t>0)) return; const {Q}=tauOf(P);
+  const v=t*Q/(P.ntk*(1-P.dead/100)); $("vtk").value=v.toFixed(2); if($("vtk_sl")) $("vtk_sl").value=v;
+  $("tauHint").textContent=`${fmt(t/P.ntk,2)} h por tanque → volumen útil calculado: ${fmt(v,2)} m³ por tanque.`; fitResults=null; schedule(); }
+function render(){
+  const P=readP(); $("modelHint").textContent=MODEL_HINT[P.model]; syncTau(P);
+  $("do").disabled = P.domode==="sat"; $("dor").disabled = P.domode==="sat";
+  if(P.domode==="sat"){ const d=doOf(P); $("do").value=d.toFixed(2); $("dor").value=d; }
+  const v=activeView();
+  if(v==="cinetica") renderKin(P); else if(v==="modelos") renderCmp(P); else if(v==="variables") renderSens(P); else if(v==="circuito") renderCirc(P); else if(v==="calculos") renderCalc(P); else if(v==="economia") renderEconTab(P);
+}
+
+/* ---------- Cinética ---------- */
+let lastKin=null;
+function renderKin(P){
+  const m=mById(P.model), cur=batchCurve(P.model,P,P.tmax,600); lastKin=cur;
+  const classes=grainClasses(P.d50,P.sg), w=wadsworth(P.cn*Math.exp(0),P.ph,doOf(P),P.T,P.dl);
+  const at=(t)=>{const c2=batchCurve(P.model,P,t,Math.max(50,Math.round(600*t/P.tmax))); return c2.a[c2.a.length-1];};
+  const rec=at(P.teval)*100, t50=timeToBatch(batchCurve(P.model,P,Math.max(P.tmax,400),4000),0.5), tT=timeToBatch(batchCurve(P.model,P,Math.max(P.tmax,400),4000),P.target/100);
+  const Jmg=w.J*M_AU*1000*3600, vum=recessRate(w.J)*1e4;
+  const ctrl = w.ratioDiff>3?["o2","Controla el O₂"]:w.ratioDiff<1/3?["cn","Controla el CN⁻"]:["mix","Control mixto"];
+  const water=(1-P.sol/100)/(P.sol/100); const cnEnd=P.cn*Math.exp(-P.kc*P.teval); const cnCons=(P.cn-cnEnd)*water*1000/1e6;
+  const kTxt = P.model==="MEC" ? `${fmt(vum,3)}<span class="u">µm/h</span>` : `${fmt(kOf(P.model,P),4)}<span class="u">h⁻¹</span>`;
+  $("kpis").innerHTML=[
+    ["Recuperación a "+fmt(P.teval,1)+" h",`${fmt(rec,1)}<span class="u">%</span>`],
+    ["Tiempo para 50 %",`${isFinite(t50)?fmt(t50,2):"no alcanza"}<span class="u">${isFinite(t50)?"h":""}</span>`],
+    ["Tiempo para "+fmt(P.target,0)+" %",`${isFinite(tT)?fmt(tT,1):"no alcanza"}<span class="u">${isFinite(tT)?"h":""}</span>`],
+    [P.model==="MEC"?"Velocidad de recesión del grano":"Constante k actual",kTxt],
+    ["Flujo de disolución de Au",`${fmt(Jmg,2)}<span class="u">mg/cm²·h</span>`],
+    ["Régimen (modelo electroquímico)",`<span class="pill ${ctrl[0]}">${ctrl[1]}</span>`],
+  ].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("") + (P.ph<10?`<div class="kpi"><div class="l">Seguridad</div><div class="v"><span class="pill warn">pH &lt; 10: riesgo de HCN</span></div></div>`:"") + (P.kc>0?`<div class="kpi"><div class="l">NaCN consumido a ${fmt(P.teval,1)} h</div><div class="v">${fmt(cnCons,3)}<span class="u">kg/t</span></div></div>`:"");
+  $("capKin").textContent=`${m.name}. Extracción máxima α∞ = ${fmt(amax(P)*100,1)} % (oro no lixiviable ${fmt(P.refr,1)} %).`;
+  const pts=cur.t.map((t,i)=>[t,cur.a[i]*100]);
+  const series=[{name:m.short,color:m.color,dash:m.dash,pts,area:true,w:2.5}];
+  if(P.model!=="MEC"){ const mc=batchCurve("MEC",P,P.tmax,400); series.push({name:"Mecanístico (referencia)",color:"--s1",dash:"5 4",pts:mc.t.map((t,i)=>[t,mc.a[i]*100])}); }
+  lineChart($("chKin"),{series,xLabel:"Tiempo (h)",yLabel:"Extracción de Au (%)",xName:"t (h)",yMin:0,yMax:100,xMin:0,xMax:P.tmax,
+    hlines:[{y:amax(P)*100,label:"α∞ = "+fmt(amax(P)*100,1)+" %",left:true},{y:P.target,label:"objetivo "+fmt(P.target,0)+" %",below:true}],vlines:[{x:P.teval,label:fmt(P.teval,1)+" h"}],
+    markers:[{x:P.teval,y:rec,label:fmt(rec,1)+" %",color:m.color,below:true}],fmtTipY:v=>fmt(v,2)+" %"});
+  legend($("lgKin"),series.map(s=>({name:s.name,color:s.color,dash:s.dash})));
+  const rate=pts.map((p,i)=>i===0?null:[(p[0]+pts[i-1][0])/2,(p[1]-pts[i-1][1])/(p[0]-pts[i-1][0])]).filter(Boolean);
+  lineChart($("chRate"),{series:[{name:"dα/dt",color:m.color,pts:rate}],xLabel:"Tiempo (h)",yLabel:"dα/dt (%/h)",xMin:0,xMax:P.tmax,yMin:0,height:200,fmtTipY:v=>fmt(v,3)+" %/h",xName:"t (h)"});
+  lineChart($("chCN"),{series:[{name:"NaCN",color:"--s2",pts:cur.t.map((t,i)=>[t,cur.c[i]])}],xLabel:"Tiempo (h)",yLabel:"NaCN (mg/L)",xMin:0,xMax:P.tmax,yMin:0,yMax:Math.max(P.cn*1.1,10),height:170,fmtTipY:v=>fmt(v,0)+" mg/L",xName:"t (h)"});
+  const rows=[
+    ["NaCN total / cianuro libre (como NaCN)",`${fmt(P.cn,0)} / ${fmt(w.cnFree_mgL,0)} mg/L`,`fracción libre a pH ${fmt(P.ph,1)} = ${fmt(freeFrac(P.ph)*100,1)} %`],
+    ["[CN⁻] libre",`${fmtSci(w.Ccn)} mol/cm³`,""],
+    ["Oxígeno disuelto",`${fmt(doOf(P),2)} mg/L = ${fmtSci(w.Co2)} mol/cm³`,P.domode==="sat"?`C*(${fmt(P.T,0)} °C) = ${fmt(o2Sat(P.T),2)} mg/L`:"valor fijo"],
+    ["D_CN⁻ / D_O₂ a T",`${fmtSci(w.Dcn)} / ${fmtSci(w.Do2)} cm²/s`,`μ agua = ${fmt(viscW(P.T)*1000,3)} mPa·s`],
+    ["Capa límite δ",`${fmt(P.dl,0)} µm = ${fmtSci(w.d)} cm`,`h_m,O₂ = D/δ = ${fmtSci(w.Do2/w.d)} cm/s`],
+    ["D_CN[CN⁻] / 4·D_O₂[O₂]",`${fmt(w.ratioDiff,2)}`,"> 1: controla O₂ · < 1: controla CN⁻"],
+    ["Relación molar [CN⁻]/[O₂]",`${fmt(w.molarRatio,1)}`,"transición teórica ≈ 6 (experimental 4,6–7,4)"],
+    ["Flujo J",`${fmtSci(w.J)} mol/cm²·s`,`${fmt(Jmg,3)} mg Au/cm²·h`],
+    ["Velocidad de recesión dr/dt",`${fmt(vum,3)} µm/h`,`grano de ${fmt(P.d50,0)} µm se disuelve por completo en ${fmt(P.d50/2/vum,1)} h`]
+  ];
+  $("tblMech").innerHTML="<tr><th>Magnitud</th><th>Valor</th><th>Comentario</th></tr>"+rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+}
+async function copyKin(){ if(!lastKin) return; const csv="t_h,extraccion_pct,NaCN_mgL\n"+lastKin.t.map((t,i)=>`${t.toFixed(3)},${(lastKin.a[i]*100).toFixed(3)},${lastKin.c[i].toFixed(2)}`).join("\n");
+  try{ await navigator.clipboard.writeText(csv); $("copyKinOk").textContent="Copiado al portapapeles"; }catch(e){ $("copyKinOk").textContent="El navegador no permitió copiar."; } setTimeout(()=>$("copyKinOk").textContent="",2500); }
+
+/* ---------- Comparación ---------- */
+function parseData(){ const out=[]; $("expData").value.split(/\n/).forEach(l=>{ const p=l.split(/[,;\t ]+/).map(s=>parseFloat(s.replace(",","."))).filter(x=>isFinite(x)); if(p.length>=2) out.push([p[0],p[1]/100]); }); return out.sort((a,b)=>a[0]-b[0]); }
+function targetData(P){ return $("fitTarget").value==="exp" ? parseData() : processCurve(P,30); }
+function runFit(P){ const data=targetData(P), isExp=$("fitTarget").value==="exp";
+  if(data.length<3){ $("fitMsg").textContent="Se necesitan al menos 3 puntos (tiempo, recuperación)."; fitResults=null; return; }
+  fitResults=MODELS.map(m=>fitModel(m.id,P,data,$("fitAinf").checked)).sort((a,b)=>a.sse-b.sse); fitResults.data=data; fitResults.isExp=isExp;
+  if(isExp) $("fitMsg").textContent=`Ajuste con ${data.length} puntos. Mejor modelo: ${mById(fitResults[0].id).short} (R² = ${fmt(fitResults[0].r2,4)}).`; else $("fitMsg").textContent=""; }
+function renderCmp(P){
+  if(!fitResults) runFit(P);
+  if(!fitResults){ $("modelGrid").innerHTML=""; return; }
+  const isExp=fitResults.isExp, data=fitResults.data, rank=fitResults.filter(f=>isExp||f.id!=="MEC"), best=rank[0], bm=mById(best.id);
+  const st=controlStage(P), Ea=apparentEa(P);
+  const stCls={o2:"o2",cn:"cn",mix:"mix"}[st.key];
+  $("capDiag").textContent = isExp
+    ? `Ajuste por mínimos cuadrados a los ${data.length} datos experimentales. La etapa controlante se estima con los parámetros de la barra lateral.`
+    : `El proceso se simula con el modelo mecanístico y los parámetros actuales (curva de 0 a ${fmt(data[data.length-1][0],1)} h). Luego se ajusta cada modelo cinético de clase a esa curva. Cambia cualquier parámetro y el diagnóstico se recalcula.`;
+  $("diagKpi").innerHTML=[
+    ["Modelo que mejor ajusta",`<span style="font-size:18px">${bm.short}</span>`],
+    ["R² del mejor ajuste",fmt(best.r2,5)],
+    ["k ajustada",`${fmt(best.k,4)}<span class="u">${best.id==="MEC"?"×":"h⁻¹"}</span>`],
+    ["Etapa controlante",`<span class="pill ${stCls}">${st.txt}</span>`],
+    ["Eₐ aparente (T ± 5 °C)",`${fmt(Ea,1)}<span class="u">kJ/mol</span>`],
+    ["D_CN[CN⁻] / 4·D_O₂[O₂]",fmt(st.ratio,2)]
+  ].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  $("tblRank").innerHTML="<tr><th>#</th><th>Modelo</th><th>Mecanismo que representa</th><th class='n'>k</th><th class='n'>α∞ (%)</th><th class='n'>R²</th><th class='n'>RMSE (%)</th></tr>"+
+    fitResults.map(f=>{const r=rank.indexOf(f); return `<tr class="${f===best?"best":""}"><td>${r>=0?r+1:"base"}</td><td>${mById(f.id).short}</td><td>${MECH_OF[f.id]}</td><td class="n">${f.id==="MEC"?fmt(f.k,3)+" ×":fmt(f.k,4)}</td><td class="n">${fmt(f.A*100,1)}</td><td class="n">${fmt(f.r2,4)}</td><td class="n">${fmt(f.rmse*100,2)}</td></tr>`;}).join("");
+  const eaTxt = Ea<20?"baja (< 20 kJ/mol), típica de control por difusión":Ea>40?"alta (> 40 kJ/mol), típica de control químico":"intermedia (20–40 kJ/mol)";
+  const shapeNote = ["R1","R2","R3"].includes(best.id)?" La forma de núcleo decreciente aparece aunque el control sea difusional: con una concentración en la capa límite casi constante, la velocidad es proporcional al área del grano, igual que en el control químico (Ray y Ray, §3.5.1 y §5.5.2).":"";
+  $("diagNote").innerHTML=`<b>Lectura.</b> La curva se describe mejor con <b>${bm.short}</b>, que corresponde a ${MECH_OF[best.id]}.${shapeNote} Por eso la etapa controlante no se decide solo con la forma de la curva: la energía de activación aparente es ${eaTxt}, y el balance de difusión indica <b>${st.txt.charAt(0).toLowerCase()+st.txt.slice(1)}</b>${st.key==="o2"?": subir el O₂ (aire enriquecido, peróxido) acelera; subir el NaCN casi no cambia nada":st.key==="cn"?": subir el NaCN acelera; más O₂ no ayuda":": tanto el NaCN como el O₂ influyen"}. La agitación (δ) actúa en cualquier caso, porque ambas difusiones atraviesan la capa límite.`;
+  // ---- tarjetas por modelo
+  $("capGrid").textContent = `Cada tarjeta muestra el ${isExp?"dato experimental":"proceso simulado"} (puntos) y el ajuste del modelo (línea). Debajo, la ecuación general y la ecuación con los parámetros ajustados.`;
+  const tmx=data[data.length-1][0]*(isExp?1.15:1);
+  $("modelGrid").innerHTML=MODELS.map(m=>{ const f=fitResults.find(x=>x.id===m.id); const eq=eqText(m.id,f.k,f.A,P.nA); const isB=f===best;
+    return `<div class="card" style="${isB?"border:2px solid var(--accent)":""}"><div class="row" style="justify-content:space-between"><h3>${m.name}</h3>${isB?'<span class="pill" style="color:var(--accent)">mejor ajuste</span>':""}${(!isExp&&m.id==="MEC")?'<span class="pill" style="color:var(--ink-3)">modelo del proceso</span>':""}</div>
+      <p class="cap" style="margin:2px 0 4px">${MECH_OF[m.id]}</p><div class="chart" id="mg_${m.id}"></div>
+      <div class="eq" style="margin:8px 0 4px;white-space:normal">${eqText(m.id,undefined,undefined,P.nA)[0]}</div>
+      <div class="eq" style="margin:0 0 6px;white-space:normal;border-color:var(--accent)">${eq[1]}</div>
+      <p class="note" style="margin:0">k = ${m.id==="MEC"?fmt(f.k,3)+" (factor sobre la velocidad teórica)":fmt(f.k,4)+" h⁻¹"} · α∞ = ${fmt(f.A*100,1)} % · R² = ${fmt(f.r2,4)} · RMSE = ${fmt(f.rmse*100,2)} %</p></div>`; }).join("");
+  MODELS.forEach(m=>{ const f=fitResults.find(x=>x.id===m.id); const pts=[]; for(let i=0;i<=80;i++){const t=tmx*i/80; pts.push([t,f.pred(t)*100]);}
+    const dots=(isExp?data:data.filter((_,i)=>i%2===0)).map(d=>[d[0],d[1]*100]);
+    lineChart($("mg_"+m.id),{series:[{name:"Ajuste "+m.short,color:m.color,dash:m.dash,pts,w:2.5},{name:isExp?"Experimental":"Proceso",color:"--ink",dots:true,r:3.5,pts:dots}],xLabel:"Tiempo (h)",yLabel:"Extracción (%)",xMin:0,xMax:tmx,yMin:0,yMax:100,height:200,xName:"t (h)",fmtTipY:v=>fmt(v,2)+" %"}); });
+  // ---- tiempo reducido
+  const classes=grainClasses(P.d50,P.sg);
+  const red=MODELS.map(m=>{ const pts=[]; for(let i=0;i<=120;i++){const x=3*i/120; pts.push([x, m.id==="MEC"? alphaConst("MEC",P,x*timeTo("MEC",P,0.5*amax(P),classes),classes)/amax(P)*100 : gInv(m.id,gFun(m.id,0.5,P.nA)*x,P.nA)*100]);} return {name:m.short,color:m.color,dash:m.dash,pts}; });
+  const norm=best.A; let t50d=null; for(let i=1;i<data.length;i++){ const y0=data[i-1][1]/norm,y1=data[i][1]/norm; if(y0<0.5&&y1>=0.5){t50d=data[i-1][0]+(0.5-y0)/(y1-y0)*(data[i][0]-data[i-1][0]); break;} }
+  if(t50d) red.push({name:isExp?"Experimental":"Proceso",color:"--ink",dots:true,r:3.5,pts:data.map(d=>[d[0]/t50d,d[1]/norm*100]).filter(p=>p[0]<=3)});
+  lineChart($("chRed"),{series:red,xLabel:"Tiempo reducido t/t₀,₅",yLabel:"α/α∞ (%)",xMin:0,xMax:3,yMin:0,yMax:100,xName:"t/t₀,₅",fmtTipY:v=>fmt(v,1)+" %",vlines:[{x:1,label:"t₀,₅"}],height:320});
+  legend($("lgRed"),red.map(s=>({name:s.name,color:s.color,dash:s.dash,dots:s.dots})));
+  // ---- linealización
+  const lid=$("linModel").value, Ainf=(fitResults.find(f=>f.id===lid)||{}).A||1;
+  const pts=data.filter(d=>d[1]>0&&d[1]/Ainf<0.995).map(d=>[d[0],gFun(lid,d[1]/Ainf,P.nA)]);
+  if(pts.length>=2){ const sxy=pts.reduce((a,p)=>a+p[0]*p[1],0), sxx=pts.reduce((a,p)=>a+p[0]*p[0],0), k=sxy/sxx;
+    const ym=pts.reduce((a,p)=>a+p[1],0)/pts.length, ssr=pts.reduce((a,p)=>a+(p[1]-k*p[0])**2,0), sst=pts.reduce((a,p)=>a+(p[1]-ym)**2,0), r2=sst>0?1-ssr/sst:NaN, tm=Math.max(...pts.map(p=>p[0]))*1.1;
+    $("capLin").textContent=`Con α∞ = ${fmt(Ainf*100,1)} %: recta por el origen k = ${fmt(k,4)} h⁻¹, R² = ${fmt(r2,4)}. Si los puntos se alinean, el mecanismo es compatible (Ray y Ray, §2.2.1).`;
+    lineChart($("chLin"),{series:[{name:"g(α) = kt",color:mById(lid).color,pts:[[0,0],[tm,k*tm]],noTip:true},{name:"g(α)",color:"--ink",dots:true,r:3.5,pts}],xLabel:"Tiempo (h)",yLabel:"g(α)",xMin:0,xMax:tm,yMin:0,xName:"t (h)",fmtTipY:v=>fmt(v,4),height:320});
+  } else { $("capLin").textContent="No hay suficientes puntos para linealizar."; $("chLin").innerHTML=""; }
+}
+
+/* ---------- Variables ---------- */
+const SENS={cn:{lab:"NaCN (mg/L)",lo:20,hi:1500},do:{lab:"Oxígeno disuelto (mg/L)",lo:0.5,hi:35},T:{lab:"Temperatura (°C)",lo:5,hi:60},ph:{lab:"pH",lo:8.5,hi:12.5},dl:{lab:"Capa límite δ (µm)",lo:20,hi:90},d50:{lab:"d₅₀ de granos de oro (µm)",lo:5,hi:150}};
+function renderSens(P){
+  const vk=$("sensVar").value, s=SENS[vk], m=mById(P.model), times=[P.teval/4,P.teval/2,P.teval], cols=["--s3","--s4","--s1"], N=60;
+  const series=times.map((tt,j)=>{ const pts=[]; for(let i=0;i<=N;i++){ const x=s.lo+(s.hi-s.lo)*i/N; const Q={...P,[vk]:x}; if(vk==="do") Q.domode="fix"; const c=batchCurve(P.model,Q,tt,Math.max(60,Math.round(tt*6))); pts.push([x,c.a[c.a.length-1]*100]); } return {name:`a ${fmt(tt,1)} h`,color:cols[j],pts,w:j===2?2.5:2}; });
+  const curX = vk==="do"?doOf(P):P[vk];
+  const curY = series[2].pts.reduce((b,p)=>Math.abs(p[0]-curX)<Math.abs(b[0]-curX)?p:b)[1];
+  $("capSens").textContent=`${m.name}. Recuperación a tres tiempos de lixiviación al variar ${s.lab.toLowerCase()}; las demás condiciones son las de la barra lateral.${vk==="T"&&P.domode==="sat"?" Con OD por saturación, el oxígeno cae al calentar.":""}${vk==="do"?" Aquí el OD se trata como valor fijo.":""}`;
+  lineChart($("chSens"),{series,xLabel:s.lab,yLabel:"Extracción de Au (%)",xMin:s.lo,xMax:s.hi,yMin:0,yMax:100,xName:s.lab,fmtTipY:v=>fmt(v,1)+" %",vlines:[{x:curX,label:"actual"}],markers:[{x:curX,y:curY,label:fmt(curY,1)+" %",color:"--s1",below:true}],height:320});
+  legend($("lgSens"),series);
+  // Wadsworth
+  const dos=[2,8,16,32], wc=["--s1","--s2","--s3","--s4"];
+  const ws=dos.map((d,j)=>{const pts=[]; for(let i=0;i<=80;i++){const c=1500*i/80; pts.push([c,wadsworth(c,P.ph,d,P.T,P.dl).J*M_AU*1000*3600]);} return {name:`OD ${d} mg/L`,color:wc[j],pts};});
+  const wcur=wadsworth(P.cn,P.ph,doOf(P),P.T,P.dl);
+  lineChart($("chWad"),{series:ws,xLabel:"NaCN (mg/L)",yLabel:"Disolución (mg Au/cm²·h)",xMin:0,xMax:1500,yMin:0,xName:"NaCN (mg/L)",fmtTipY:v=>fmt(v,3),markers:[{x:P.cn,y:wcur.J*M_AU*1000*3600,label:"condición actual",color:"--ink"}]});
+  legend($("lgWad"),ws);
+  // Temperatura
+  const tsat=[],tfix=[]; for(let T=5;T<=60;T+=1){ const Qs={...P,T,domode:"sat"}; tsat.push([T,wadsworth(P.cn,P.ph,doOf(Qs),T,P.dl).J*M_AU*1000*3600]); tfix.push([T,wadsworth(P.cn,P.ph,P.domode==="fix"?P.do:8,T,P.dl).J*M_AU*1000*3600]); }
+  const tsr=[{name:"OD por saturación con el gas actual",color:"--s2",pts:tsat},{name:`OD fijo (${fmt(P.domode==="fix"?P.do:8,1)} mg/L)`,color:"--s1",pts:tfix,dash:"6 4"}];
+  const best=tsat.reduce((b,p)=>p[1]>b[1]?p:b);
+  lineChart($("chTemp"),{series:tsr,xLabel:"Temperatura (°C)",yLabel:"Disolución (mg Au/cm²·h)",xMin:5,xMax:60,yMin:0,xName:"T (°C)",fmtTipY:v=>fmt(v,3),markers:[{x:best[0],y:best[1],label:`máximo ≈ ${fmt(best[0],0)} °C`,color:"--s2"}]});
+  legend($("lgTemp"),tsr);
+}
+
+/* ---------- Diagrama de flujo ---------- */
+let prevN=null;
+function flowPlant(P,cum,ti,info){
+  const n=P.ntk, tw=74, gap=34, x0=120, W=x0+n*(tw+gap)+150, H=452, y0=170, th=130;
+  const grew = prevN!==null && n>prevN; prevN=n;
+  const T=(x,y,txt,st,anchor)=>`<text x="${x}" y="${y}"${anchor?` text-anchor="${anchor}"`:""} style="${st}">${txt}</text>`;
+  const sI="fill:var(--ink);font-size:12px;font-weight:500", s2="fill:var(--ink-2);font-size:11px", s3="fill:var(--ink-3);font-size:10px", sA="fill:var(--accent);font-size:10px";
+  let s=`<svg id="flowSvg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Circuito de ${n} tanques en serie">`;
+  s+=`<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink-2)"/></marker><marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/></marker></defs>`;
+  s+=(P.hrs<24?T(8,y0+24,`Opera ${fmt(P.hrs,1)} h/d`,"fill:var(--accent);font-size:11px"):"")+T(8,y0+42,"Pulpa molida",s2)+T(8,y0+57,`${fmt(info.tph,2)} t/h · ${fmt(P.sol,0)} %`,"fill:var(--ink-3);font-size:11px")+T(8,y0+72,`${fmt(P.head,2)} g/t Au`,"fill:var(--ink-3);font-size:11px");
+  s+=`<line class="pipe" id="pfeed" x1="8" y1="${y0+80}" x2="${x0-6}" y2="${y0+80}" style="stroke:var(--ink-2);stroke-width:1.5" marker-end="url(#ar)"/>`;
+  s+=T(x0-104,y0-34,P.dosMode==="dose"?`Dosis fija ${fmt(P.doseKgT,2)} kg/t NaCN · pH ${fmt(P.ph,1)}`:`Consigna ${fmt(P.cn,0)} mg/L NaCN · pH ${fmt(P.ph,1)}`,sA);
+  const DO=doOf(P);
+  for(let i=0;i<n;i++){
+    const x=x0+i*(tw+gap), cx=x+tw/2, lvl=0.86*th, ext=clamp(cum[i]/100,0,1);
+    s+=`<g class="tk act${grew&&i===n-1?" new":""}" id="tk${i}">`;
+    s+=`<rect x="${x}" y="${y0}" width="${tw}" height="${th}" rx="3" style="fill:var(--tank);stroke:var(--tank-edge);stroke-width:1.2"/>`;
+    s+=`<rect class="pulp" id="pl${i}" x="${x+2}" y="${y0+th-lvl}" width="${tw-4}" height="${lvl-2}" style="fill:var(--tank-edge);fill-opacity:.22"/>`;
+    s+=`<rect class="tankfill" id="tf${i}" x="${x+2}" y="${y0+th-lvl*ext}" width="${tw-4}" height="${Math.max(0,lvl*ext-2)}" style="fill:var(--accent);fill-opacity:${(0.18+0.5*ext).toFixed(3)}"/>`;
+    for(let b=0;b<3;b++) s+=`<circle class="bub" cx="${x+tw-12+(b-1)*5}" cy="${y0+th-10}" r="2.2" style="fill:var(--s1);animation-delay:${(b*0.6).toFixed(1)}s"/>`;
+    s+=`<line x1="${x+2}" y1="${y0+th-lvl}" x2="${x+tw-2}" y2="${y0+th-lvl}" style="stroke:var(--tank-edge);stroke-dasharray:3 3;stroke-width:.8"/>`;
+    s+=`<rect x="${cx-9}" y="${y0-16}" width="18" height="12" rx="2" style="fill:var(--tank-edge)"/>`;
+    s+=`<line x1="${cx}" y1="${y0-4}" x2="${cx}" y2="${y0+th-30}" style="stroke:var(--ink-2);stroke-width:2"/>`;
+    s+=`<path class="imp" d="M${cx-15},${y0+th-26} Q${cx-6},${y0+th-36} ${cx},${y0+th-30} Q${cx+6},${y0+th-24} ${cx+15},${y0+th-34}" style="stroke:var(--ink-2);stroke-width:3;fill:none"/>`;
+    s+=`<line x1="${x+tw-12}" y1="${y0+th+22}" x2="${x+tw-12}" y2="${y0+th-8}" style="stroke:var(--s1);stroke-width:1.2" marker-end="url(#ar)"/>`;
+    const sim=info.sim, addKg=sim.add[i]*sim.Qw/1000/sim.tph;
+    s+=`<g id="ds${i}" style="${addKg>0.0005?"":"display:none"}"><line class="pipe" id="dsl${i}" x1="${x+12}" y1="${y0-30}" x2="${x+12}" y2="${y0+6}" style="stroke:var(--accent);stroke-width:1.5" marker-end="url(#arA)"/>`+`<text id="dst${i}" x="${x+16}" y="${y0-20}" style="${sA}">${fmt(addKg,2)} kg/t</text></g>`;
+    s+=`<text id="tl${i}" x="${cx}" y="${y0+th+40}" text-anchor="middle" style="${sI}">T${i+1} · ${fmt(cum[i],1)} %</text>`;
+    s+=`<text id="tg${i}" x="${cx}" y="${y0+th+55}" text-anchor="middle" style="${s3}">+${fmt(cum[i]-(i?cum[i-1]:0),1)} %</text>`;
+    s+=`<text id="tc${i}" x="${cx}" y="${y0+th+68}" text-anchor="middle" style="${s3}">CN ${fmt(info.sim.C[i],0)} · OD ${fmt(DO,1)}</text>`;
+    s+=`<text id="ta${i}" x="${cx}" y="${y0+th+81}" text-anchor="middle" style="${s3}">Au ${fmt(info.auSol?info.auSol[i]:0,2)} mg/L</text>`;
+    const xe=x+tw, nx=i<n-1?x+tw+gap-4:x+tw+40;
+    s+=`<path class="pipe" id="pp${i}" d="M${xe},${y0+28} H${xe+10} V${y0+th-10} H${nx}" style="fill:none;stroke:var(--ink-2);stroke-width:1.5" marker-end="url(#ar)"/>`;
+    s+=`</g>`;
+  }
+  const xr=x0+n*(tw+gap)+10, recN={cil:"CIL",cip:"CIP",mc:"Merrill-Crowe"}[$("recov").value];
+  s+=`<rect x="${xr}" y="${y0+th-44}" width="120" height="58" rx="4" style="fill:var(--panel);stroke:var(--accent);stroke-width:1.4"/>`;
+  s+=T(xr+60,y0+th-22,recN,sI,"middle")+`<text id="fpreg" x="${xr+60}" y="${y0+th-6}" text-anchor="middle" style="${s3}">${fmt(info.preg,2)} mg/L Au</text>`;
+  s+=`<text id="frel" x="${xr}" y="${y0-24}" style="${s3}">Relave: ${fmt(info.res,3)} g/t</text><text id="frcn" x="${xr}" y="${y0-10}" style="${s3}">CN al relave ${fmt(info.sim.C[n-1],0)} mg/L</text>`;
+  if(info.sim.Cin>0.5) s+=`<path class="pipe" id="prec" d="M${xr+60},${y0+th+14} V${H-40} H${x0-40} V${y0+th-2}" style="fill:none;stroke:var(--accent);stroke-width:1.2;stroke-dasharray:5 4" marker-end="url(#arA)"/>`+T(x0-36,H-46,`recirculación ${fmt(P.recyc,0)} % · ${fmt(info.sim.Cin,0)} mg/L`,sA);
+  s+=T(x0,H-6,`τ por tanque ${fmt(ti,2)} h · CN y OD en mg/L · aire en azul · llenado dorado = extracción acumulada`,s3);
+  s+=`<g id="lupa">
+    <line id="lpLine" x1="0" y1="0" x2="0" y2="0" style="stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3"/>
+    <circle id="lpDot" cx="0" cy="0" r="5" style="fill:var(--accent);stroke:var(--panel);stroke-width:2"/>
+    <circle id="lpRing" cx="0" cy="66" r="56" style="fill:var(--panel);stroke:var(--ink-2);stroke-width:1.5"/>
+    <circle id="lpBl" cx="0" cy="66" r="50" style="fill:var(--s1);fill-opacity:.1;stroke:var(--s1);stroke-dasharray:3 3"/>
+    <circle id="lpR0" cx="0" cy="66" r="20" style="fill:none;stroke:var(--ink-3);stroke-dasharray:2 2"/>
+    <circle id="lpCore" cx="0" cy="66" r="20" style="fill:var(--accent);fill-opacity:.9"/>
+    <circle id="lpArcC" cx="0" cy="66" r="20" style="fill:none;stroke:var(--s1);stroke-width:3"/>
+    <circle id="lpArcA" cx="0" cy="66" r="20" style="fill:none;stroke:var(--s2);stroke-width:3"/>
+    <g id="lpIons"></g>
+    <text id="lpT1" x="0" y="12" style="fill:var(--ink);font-size:11px;font-weight:500"></text>
+    <text id="lpT2" x="0" y="140" style="fill:var(--ink-2);font-size:10px"></text>
+    <text id="lpT3" x="0" y="150" style="fill:var(--ink-3);font-size:10px"></text>
+  </g>`;
+  return s+"</svg>";
+}
+
+/* ---------- Simulación dinámica (arranque) ---------- */
+const DYN={data:null,t:0,run:false,last:null,raf:null,P:null,key:"",frame:0};
+const TKCOL=["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+function dynIdx(t){ const d=DYN.data; if(!d) return 0; let lo=0,hi=d.t.length-1; while(hi-lo>1){const m=(lo+hi)>>1; if(d.t[m]<=t) lo=m; else hi=m;} return lo; }
+function dynOnCirc(P,ti,sim){
+  const key=JSON.stringify([P.model,P.nA,P.d50,P.sg,P.refr,P.cn,P.ph,P.domode,P.do,P.yo2,P.eta,P.T,P.dl,P.t50ref,P.ea,P.a,P.b,P.c,P.e,P.tpd,P.sol,P.rhos,P.ntk,P.vtk,P.dead,P.dosMode,P.doseKgT,P.kcp,P.khcn,P.recyc,P.head,P.hrs,$("dynStart").value]);
+  if(key!==DYN.key){ DYN.key=key; DYN.data=dynSim(P,P.ntk,ti*P.hrs/24,{fill:$("dynStart").value==="fill",hrs:P.hrs}); DYN.P=P; DYN.t=Math.min(DYN.t,DYN.data.tEnd); }
+  DYN.P=P; const d=DYN.data; $("dynT").max=d.tEnd.toFixed(2); $("dynT").value=DYN.t;
+  $("dynNote").textContent = `Arranque ${d.fill?"con los tanques vacíos: la pulpa llena T1 y luego rebosa al siguiente":"con todos los tanques llenos de pulpa fresca acondicionada"}. ${d.hrs<24?`La planta alimenta ${fmt(d.hrs,1)} h y se detiene ${fmt(24-d.hrs,1)} h cada día (franjas grises en las gráficas); en la parada los tanques siguen agitándose. `:""}Llenado completo en ${fmt(d.tFull,1)} h · régimen estable estimado en ${fmt(d.tss,1)} h${d.hrs<24?` · recuperación promedio de lo descargado: ${fmt(d.XNavg[d.XNavg.length-1]*100,2)} %`:""}. Al cambiar parámetros, la simulación se recalcula y sigue desde el mismo tiempo.`;
+  $("capDyn").textContent=`Evolución desde el arranque hasta ${fmt(d.tEnd,0)} h de operación. La línea vertical marca el tiempo actual de la animación; usa el interruptor o arrastra la barra de tiempo.${P.ntk>8?" Se muestran 8 de los "+P.ntk+" tanques, incluido el último.":""}`;
+  GR.path=null; dynShow(true);
+}
+function dynTanks(n){ if(n<=8) return [...Array(n).keys()]; const out=[]; for(let j=0;j<8;j++) out.push(Math.round(j*(n-1)/7)); return out; }
+function dynShow(charts){
+  const d=DYN.data, P=DYN.P; if(!d||!P) return; const j=dynIdx(DYN.t), n=d.n, started=DYN.t>0||DYN.run; grainShow();
+  const lvl=0.86*130, y0=170, th=130, DO=doOf(P);
+  $("dynClock").textContent = `t = ${fmt(DYN.t,1)} h  (${fmt(DYN.t/24,2)} d)`+(started&&d.hrs<24?(d.feed[j]?" · alimentando":" · parada: sin alimentación"):"")+(DYN.t>=d.tss&&started?(d.hrs<24?" · régimen estable":" · estado estacionario"):"");
+  const svg=$("flowSvg"); if(svg) svg.classList.toggle("run",DYN.run);
+  if(started){
+    for(let i=0;i<n;i++){ const v=d.V[j][i], x=d.X[j][i], fill=v*lvl, gx=x*fill, has=v>0.001;
+      const pl=$("pl"+i), tf=$("tf"+i); if(!pl) continue;
+      pl.setAttribute("y",y0+th-fill); pl.setAttribute("height",Math.max(0,fill-2));
+      tf.setAttribute("y",y0+th-gx); tf.setAttribute("height",Math.max(0,gx-2)); tf.style.fillOpacity=(0.18+0.5*x).toFixed(3);
+      $("tk"+i).classList.toggle("act",has);
+      $("tl"+i).textContent=`T${i+1} · ${has?fmt(x*100,1)+" %":"vacío"}`;
+      $("tg"+i).textContent= has?`nivel ${fmt(v*100,0)} %`:"";
+      $("tc"+i).textContent= has?`CN ${fmt(d.C[j][i],0)} · OD ${fmt(DO,1)}`:"";
+      $("ta"+i).textContent= has?`Au ${fmt(d.Au[j][i],2)} mg/L`:"";
+      $("pp"+i).classList.toggle("on",DYN.run&&d.flow[j][i][1]&&d.feed[j]);
+      const add=d.add[j][i], ds=$("ds"+i); ds.style.display=add>0.0005?"":"none"; $("dst"+i).textContent=`${fmt(add,2)} kg/t`; $("dsl"+i).classList.toggle("on",DYN.run&&add>0.0005);
+    }
+    $("pfeed").classList.toggle("on",DYN.run&&d.feed[j]); const pr=$("prec"); if(pr) pr.classList.toggle("on",DYN.run&&d.V[j][n-1]>=0.999&&d.feed[j]);
+    const ov=d.V[j][n-1]>=0.999;
+    $("fpreg").textContent = ov ? `${fmt(d.Au[j][n-1],2)} mg/L Au` : "sin rebose aún";
+    $("frel").textContent = ov ? `Relave: ${fmt(P.head*(1-d.X[j][n-1]),3)} g/t` : "Relave: sin descarga";
+    $("frcn").textContent = ov ? `CN al relave ${fmt(d.C[j][n-1],0)} mg/L` : "";
+  }
+  if(!charts) return;
+  const idx=dynTanks(n), upto=started?j:d.t.length-1;
+  const mk=(arr,f)=>idx.map((i,c)=>({name:"T"+(i+1),color:TKCOL[c],pts:d.t.slice(0,upto+1).map((t,k)=>[t,f(arr[k],i,k)]).filter(p=>p[1]!==null)}));
+  const stops=[]; if(d.hrs<24){ for(let day=0;day*24<d.tEnd;day++){ stops.push([day*24+d.hrs,Math.min(day*24+24,d.tEnd)]); } }
+  const common={xLabel:"Tiempo de operación (h)",xMin:0,xMax:d.tEnd,yMin:0,height:200,xName:"t (h)",shade:stops,vlines:started?[{x:DYN.t,label:""}]:[{x:d.tss,label:d.hrs<24?"estable":"estacionario"}]};
+  lineChart($("dyV"),{...common,series:mk(d.V,(a,i)=>a[i]*100),yLabel:"Nivel (%)",yMax:100,fmtTipY:v=>fmt(v,0)+" %"});
+  lineChart($("dyX"),{...common,series:mk(d.X,(a,i,k)=>d.V[k][i]>0.001?a[i]*100:null),yLabel:"Extracción (%)",yMax:100,fmtTipY:v=>fmt(v,1)+" %"});
+  const cmax=Math.max(10,...d.C.map(r=>Math.max(...r)))*1.1, amx=Math.max(0.5,...d.Au.map(r=>Math.max(...r)))*1.1;
+  lineChart($("dyC"),{...common,series:mk(d.C,(a,i,k)=>d.V[k][i]>0.001?a[i]:null),yLabel:"NaCN (mg/L)",yMax:cmax,fmtTipY:v=>fmt(v,0)+" mg/L"});
+  lineChart($("dyA"),{...common,series:mk(d.Au,(a,i,k)=>d.V[k][i]>0.001?a[i]:null),yLabel:"Au (mg/L)",yMax:amx,fmtTipY:v=>fmt(v,2)+" mg/L"});
+  legend($("lgDyn"),idx.map((i,c)=>({name:"T"+(i+1),color:TKCOL[c]})));
+}
+function dynTick(ts){
+  if(!DYN.run) return; const d=DYN.data; if(!d){DYN.run=false;return;}
+  if(DYN.last!==null){ const sp=$("dynSpeed").value==="auto"?d.tEnd/30:parseFloat($("dynSpeed").value); DYN.t=Math.min(d.tEnd,DYN.t+sp*(ts-DYN.last)/1000); }
+  DYN.last=ts; $("dynT").value=DYN.t; DYN.frame++;
+  dynShow(DYN.frame%3===0);
+  if(DYN.t>=d.tEnd){ dynSet(false); dynShow(true); return; }
+  DYN.raf=requestAnimationFrame(dynTick);
+}
+function dynSet(on){ DYN.run=on; DYN.last=null; $("dynBtn").setAttribute("aria-pressed",on?"true":"false");
+  $("dynBtnTxt").textContent=on?"Proceso en marcha":(DYN.t>0?"Continuar proceso":"Iniciar proceso");
+  if(on){ if(DYN.data&&DYN.t>=DYN.data.tEnd) DYN.t=0; cancelAnimationFrame(DYN.raf); DYN.raf=requestAnimationFrame(dynTick); } else { cancelAnimationFrame(DYN.raf); }
+  dynShow(true); }
+function dynInit(){
+  $("dynBtn").addEventListener("click",()=>dynSet(!DYN.run));
+  $("dynReset").addEventListener("click",()=>{ dynSet(false); DYN.t=0; $("dynT").value=0; schedule(); });
+  $("dynT").addEventListener("input",()=>{ DYN.t=parseFloat($("dynT").value)||0; if(!DYN.run){ if(DYN.t===0) schedule(); else dynShow(true);} });
+  $("dynStart").addEventListener("change",schedule); $("gSize").addEventListener("change",grainShow);
+}
+
+/* ---------- Grano de oro ---------- */
+const GR={phase:0,lastTs:null,path:null};
+function grainSizes(P){ const ls=Math.log(Math.max(1,P.sg)); return [["d10",P.d50*Math.exp(-1.2816*ls)],["d50",P.d50],["d90",P.d50*Math.exp(1.2816*ls)]]; }
+function grainPath(P,d,ti){ // trayectoria media de la primera pulpa: tanque = floor(tiempo con flujo/τ); en las paradas el grano se queda en su tanque y sigue disolviéndose
+  const n=P.ntk, out={t:[],s:[],k:[],ft:[]}; let s=0; const DO=doOf(P);
+  for(let j=0;j<d.t.length;j++){ const t=d.t[j], f=d.ft[j], k=Math.min(n-1,Math.floor(f/ti)), inside=f<n*ti;
+    if(j>0){ const dt=t-d.t[j-1], fp=d.ft[j-1], kp=Math.min(n-1,Math.floor(fp/ti)); if(fp<n*ti) s+=recessRate(wadsworth(Math.max(0,d.C[j-1][kp]),P.ph,DO,P.T,P.dl).J)*dt; }
+    out.t.push(t); out.s.push(s); out.k.push(inside?k:-1); out.ft.push(f); }
+  return out; }
+function grainShow(){
+  const P=DYN.P, d=DYN.data; if(!P||!d||!$("gCore")) return;
+  const sizes=grainSizes(P); const sel=$("gSize");
+  const opts=sizes.map(([l,v])=>`<option value="${l}">${l} · ${fmt(v,1)} µm</option>`).join(""); if(sel.dataset.o!==opts){ const cur=sel.value||"d50"; sel.innerHTML=opts; sel.dataset.o=opts; sel.value=cur; }
+  const dg=sizes.find(x=>x[0]===sel.value)[1], r0=dg/2, ti=d.ti, n=d.n;
+  if(!GR.path||GR.path.src!==d){ GR.path=grainPath(P,d,ti); GR.path.src=d; }
+  const j=dynIdx(DYN.t), g=GR.path, sUm=g.s[j]*1e4, r=Math.max(0,r0-sUm), k=g.k[j];
+  const kk=k<0?n-1:k, Cb=Math.max(0,d.V[j][kk]>0?d.C[j][kk]:(P.dosMode==="dose"?P.doseKgT*1000*(P.sol/100)/(1-P.sol/100):P.cn)), DO=doOf(P), w=wadsworth(Cb,P.ph,DO,P.T,P.dl);
+  const cnS=Math.max(0,w.Ccn-2*w.J*w.d/w.Dcn), o2S=Math.max(0,w.Co2-w.J*w.d/(2*w.Do2));
+  const fCN=0, fO2=0, fCat=w.ratioDiff/(1+w.ratioDiff); // Habashi–Wadsworth: O₂ se agota en áreas catódicas y CN⁻ en anódicas
+  const S=120/(r0+P.dl), R0=r0*S, R=r*S, B=(r0+P.dl)*S;
+  $("gBl").setAttribute("r",B); $("gR0").setAttribute("r",R0); $("gCore").setAttribute("r",R);
+  const Lc=2*Math.PI*R; ["gArcC","gArcA"].forEach(id=>{$(id).setAttribute("r",R); $(id).style.display=R>1?"":"none";});
+  $("gArcC").style.strokeDasharray=`${(fCat*Lc).toFixed(2)} ${Lc.toFixed(2)}`; $("gArcA").style.strokeDasharray=`0 ${(fCat*Lc).toFixed(2)} ${((1-fCat)*Lc).toFixed(2)} ${Lc.toFixed(2)}`; $("gR0t").setAttribute("y",150-R0-5);
+  $("gRl").setAttribute("x2",160+R); $("gRl").style.display=R>3?"":"none"; $("gRt").setAttribute("x",160+R/2-3); $("gRt").style.display=R>14?"":"none";
+  $("gGone").style.display=r<=0?"":"none"; $("gBlt").textContent=`capa límite δ = ${fmt(P.dl,0)} µm (a escala con el grano)`;
+  const tcn=w.Dcn*w.Ccn/w.d, to2=4*w.Do2*w.Co2/w.d, mx=Math.max(tcn,to2,1e-30), BW=300;
+  const lab=v=>fmt(v*1e4*3600,3)+" mol/m²·h";
+  $("gBcn").setAttribute("width",Math.max(2,BW*tcn/mx)); $("gBo2").setAttribute("width",Math.max(2,BW*to2/mx));
+  $("gTcn").textContent=lab(tcn); $("gTo2").textContent=lab(to2);
+  $("gTcn").setAttribute("x",BW*tcn/mx>170?6:BW*tcn/mx+6); $("gTo2").setAttribute("x",BW*to2/mx>170?6:BW*to2/mx+6);
+  $("gTctl").textContent = to2<tcn/3?"Controla el O₂: más NaCN casi no acelera":tcn<to2/3?"Controla el CN⁻: más O₂ no acelera":"Control mixto: ambos influyen";
+  const ag=1-Math.pow(r/r0,3), pop=amax(P)*mechBase(g.s[j],grainClasses(P.d50,P.sg));
+  const where = DYN.t<=0 ? "entrando a T1" : k<0 ? "salió del circuito" : "T"+(k+1);
+  $("gCap").textContent=`Un grano de la primera pulpa que entra al arranque recorre los tanques en su tiempo medio de residencia (τ = ${fmt(ti,2)} h por tanque) y se disuelve con el cianuro y el oxígeno de cada tanque. Se encoge porque el Au(CN)₂⁻ es soluble: no se forma capa de producto, y la resistencia está en la capa límite. El borde azul es el área catódica, donde se reduce el O₂, y el naranja el área anódica, donde se disuelve el Au con CN⁻; cada especie llega a cero en su área (Habashi–Wadsworth) y la superficie se reparte para que ambas velocidades sean iguales. Usa el interruptor Iniciar proceso o la barra de tiempo de arriba.${P.model!=="MEC"?" Esta vista usa siempre el modelo mecanístico.":""}`;
+  const ctl=w.ratioDiff>3?"O₂":w.ratioDiff<1/3?"CN⁻":"mixto";
+  $("gKpi").innerHTML=[["Ubicación del grano",`<span style="font-size:18px">${where}</span>`],["Tiempo de operación",`${fmt(DYN.t,1)}<span class="u">h</span>`],["NaCN en ese tanque",`${fmt(Cb,0)}<span class="u">mg/L</span>`],["r / r₀",fmt(r/r0,2)],["α del grano",`${fmt(ag*100,1)}<span class="u">%</span>`],["α de la población de granos",`${fmt(pop*100,1)}<span class="u">%</span>`],["Superficie del grano",`<span style="font-size:14px"><span style="color:var(--s1)">catódica (O₂) ${fmt(fCat*100,0)} %</span> · <span style="color:var(--s2)">anódica (CN⁻) ${fmt((1-fCat)*100,0)} %</span></span>`],["Controla",`<span class="pill ${ctl==="O₂"?"o2":ctl==="CN⁻"?"cn":"mix"}">${ctl}</span>`]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  const ions=$("gIons"); if(!ions.childElementCount){ for(let q=0;q<16;q++){ const c=document.createElementNS(NS,"circle"); c.setAttribute("r","2.6"); c.style.fill=q%2?"var(--s1)":"var(--s2)"; c.dataset.a=(q*2*Math.PI/16).toFixed(3); c.dataset.p=(q/16).toFixed(3); ions.appendChild(c);} }
+  const now=performance.now(); if(DYN.run&&GR.lastTs!==null) GR.phase+=(now-GR.lastTs)/1000*0.35; GR.lastTs=now;
+  [...ions.children].forEach(c=>{const a=+c.dataset.a,p=(+c.dataset.p+GR.phase)%1,rad=B-(B-R-3)*p; c.setAttribute("cx",160+rad*Math.cos(a)); c.setAttribute("cy",150+rad*Math.sin(a)); c.style.opacity=r>0?(0.25+0.75*(1-p)).toFixed(2):"0.15";});
+  lupaShow({k,where,r,r0,ag,fCat,ti,n,P,sel:sel.value,dg,ft:g.ft[j]});
+}
+function lupaShow(o){
+  if(!$("lupa")) return; const tw=74,gap=34,x0=120,y0=170,th=130, n=o.n, W=x0+n*(tw+gap)+150;
+  const t=DYN.t, gone=o.k<0&&t>0, kk=gone?n-1:Math.max(0,o.k);
+  const frac=gone?1:clamp((o.ft-kk*o.ti)/o.ti,0,1), tx=x0+kk*(tw+gap);
+  const dx = gone ? x0+n*(tw+gap)+70 : tx+8+frac*(tw-16), dy = gone ? y0+th-15 : y0+th-18-Math.sin(frac*Math.PI*3)*22;
+  const cx=clamp(tx+tw/2,64,W-64), cy=66, Rr=50;
+  const S=30/o.r0, R0=30, R=o.r*S; const blR=Math.min(Rr,(o.r0+DYN.P.dl)*S);
+  $("lpDot").setAttribute("cx",dx); $("lpDot").setAttribute("cy",dy);
+  $("lpLine").setAttribute("x1",dx); $("lpLine").setAttribute("y1",dy-5); $("lpLine").setAttribute("x2",cx); $("lpLine").setAttribute("y2",cy+56);
+  ["lpRing","lpBl","lpR0","lpCore","lpArcC","lpArcA"].forEach(id=>{$(id).setAttribute("cx",cx); $(id).setAttribute("cy",cy);});
+  $("lpBl").setAttribute("r",blR); $("lpR0").setAttribute("r",R0); $("lpCore").setAttribute("r",R);
+  const Lc=2*Math.PI*R; ["lpArcC","lpArcA"].forEach(id=>{$(id).setAttribute("r",R); $(id).style.display=R>1?"":"none";});
+  $("lpArcC").style.strokeDasharray=`${(o.fCat*Lc).toFixed(2)} ${Lc.toFixed(2)}`; $("lpArcA").style.strokeDasharray=`0 ${(o.fCat*Lc).toFixed(2)} ${((1-o.fCat)*Lc).toFixed(2)} ${Lc.toFixed(2)}`;
+  const left=cx+62<W-150?cx+62:cx-62, anc=cx+62<W-150?"start":"end";
+  ["lpT1","lpT2"].forEach(id=>{$(id).setAttribute("x",left); $(id).setAttribute("text-anchor",anc);});
+  $("lpT1").setAttribute("y",cy-8); $("lpT2").setAttribute("y",cy+8);
+  $("lpT1").textContent=`Grano ${o.sel} (${fmt(o.dg,1)} µm) · ${o.where}`;
+  $("lpT2").textContent= o.r<=0 ? "disuelto por completo" : `r/r₀ ${fmt(o.r/o.r0,2)} · ${fmt(o.ag*100,1)} % disuelto`;
+  $("lpT3").setAttribute("x",left); $("lpT3").setAttribute("text-anchor",anc); $("lpT3").setAttribute("y",cy+22); $("lpT3").textContent="lupa ampliada; δ fuera de escala";
+  const ions=$("lpIons"); if(!ions.childElementCount){ for(let q=0;q<12;q++){ const c=document.createElementNS(NS,"circle"); c.setAttribute("r","1.8"); c.style.fill=q%2?"var(--s1)":"var(--s2)"; c.dataset.a=(q*2*Math.PI/12).toFixed(3); c.dataset.p=(q/12).toFixed(3); ions.appendChild(c);} }
+  [...ions.children].forEach(c=>{const a=+c.dataset.a,p=(+c.dataset.p+GR.phase)%1,rad=blR-(blR-R-2)*p; c.setAttribute("cx",cx+rad*Math.cos(a)); c.setAttribute("cy",cy+rad*Math.sin(a)); c.style.opacity=o.r>0?(0.25+0.75*(1-p)).toFixed(2):"0.15";});
+}
+
+/* ---------- Circuito ---------- */
+function renderCirc(P){
+  const classes=grainClasses(P.d50,P.sg), id=P.model, m=mById(id);
+  const Cw=P.sol/100, tph=P.tpd/24, waterPerT=(1-Cw)/Cw, slurryPerT=1/P.rhos+waterPerT, Q=tph*slurryPerT, Qw=tph*waterPerT;
+  const rhoP=1/(Cw/P.rhos+(1-Cw)/1.0), Veff=P.vtk*(1-P.dead/100), ti=Veff/Q, tau=ti*P.ntk;
+  const sim=circuitSim(P,P.ntk,ti,{pct:true}), cum=sim.cum.map(v=>v*100);
+  const X=cum[cum.length-1]/100, pfr=alphaConst(id,P,tau,classes)*100;
+  const cncUsed = P.cncMode==="calc" ? sim.addKgT : P.cnc;
+  P.cncCalc=sim.addKgT; P.cncUsed=cncUsed; P.sim=sim;
+  renderCN(P,sim,ti); renderProg(P,sim,ti,classes);
+  $("tkN").textContent=`${P.ntk} tanque${P.ntk>1?"s":""}`;
+  const tphOp=P.tpd/P.hrs, QOp=tphOp*slurryPerT;
+  $("flowSub").textContent=`${P.hrs<24?`Opera ${fmt(P.hrs,1)} h/d: ${fmt(tphOp,2)} t/h y ${fmt(QOp,2)} m³/h de pulpa mientras alimenta · promedio `:""}${fmt(Q,2)} m³/h de pulpa · densidad ${fmt(rhoP,3)} t/m³ · ${fmt(Qw,2)} m³/h de solución · τ total ${fmt(tau,1)} h · modelo: ${m.short}`;
+  $("flow").innerHTML=flowPlant(P,cum,ti,{tph:tphOp,preg:tph*P.head*X/Qw,res:P.head*(1-X),sim,auSol:sim.cum.map(c=>tph*P.head*c/Qw)});
+  dynOnCirc(P,ti,sim);
+  barChart($("chTank"),{values:cum,labels:cum.map((_,i)=>"T"+(i+1)),xLabel:"Tanque",yLabel:"Recuperación acumulada (%)",yMax:100,color:m.color,
+    hlines:[{y:pfr,label:`flujo pistón ${fmt(pfr,1)} %`}],tip:i=>`<b>Tanque ${i+1}</b><br>τ acumulado: ${fmt(ti*(i+1),1)} h<br>Recuperación: ${fmt(cum[i],2)} %<br>Ganancia: ${fmt(cum[i]-(i?cum[i-1]:0),2)} %`});
+  const Ns=[],pf=[],cs=[]; const Vt=Veff*P.ntk; for(let n=1;n<=12;n++){ const t_i=Vt/n/Q; cs.push([n,circuitSim(P,n,t_i,{M:1500}).cum[n-1]*100]); pf.push([n,pfr]); }
+  const ns=[{name:"N tanques en serie",color:m.color,pts:cs},{name:"Flujo pistón",color:"--ink-3",pts:pf,dash:"5 4",noTip:false}];
+  lineChart($("chNtk"),{series:ns,xLabel:"Número de tanques",yLabel:"Recuperación (%)",xMin:1,xMax:12,xTicks:11,xName:"N",fmtX:v=>fmt(v,0),fmtTipX:v=>fmt(v,0),fmtTipY:v=>fmt(v,2)+" %",markers:[{x:P.ntk,y:cum[cum.length-1],label:`actual: ${fmt(cum[cum.length-1],1)} %`,color:m.color,below:true}],
+    yMin:Math.max(0,Math.floor(Math.min(...cs.map(p=>p[1]))/10)*10-10),yMax:100});
+  legend($("lgNtk"),ns);
+  const rts=[1,P.ntk,P.ntk*3].filter((v,i,a)=>a.indexOf(v)===i).slice(0,3).map((n,j)=>{const t_i=tau/n; const pts=[]; for(let i=0;i<=200;i++){const t=tau*3*i/200; pts.push([t,Egamma(t,n,t_i)*tau]);} return {name:`N = ${n}${n===P.ntk?" (actual)":""}`,color:["--s4","--s1","--s3"][j],pts,w:n===P.ntk?2.5:2};});
+  lineChart($("chRTD"),{series:rts,xLabel:"Tiempo (h)",yLabel:"E(t)·τ (–)",xMin:0,xMax:tau*3,yMin:0,xName:"t (h)",fmtTipY:v=>fmt(v,3),vlines:[{x:tau,label:"τ = "+fmt(tau,1)+" h"}],height:240});
+  legend($("lgRTD"),rts);
+  const auFeed=tph*P.head, auDis=auFeed*X, auRes=P.head*(1-X), preg=auDis/Qw;
+  const auMol=auDis*24/M_AU, nacnSt=auMol*2*M_NACN/1000, o2St=auMol/4*32/1000;
+  const rows=[
+    ["Horas de operación", fmt(P.hrs,1)+" h/d", P.hrs<24?`parada ${fmt(24-P.hrs,1)} h/d`:"operación continua"],
+    ["Mineral seco", fmt(tphOp,3)+" t/h"+(P.hrs<24?" en operación":""), fmt(P.tpd,1)+" t/d"+(P.hrs<24?` · promedio ${fmt(tph,3)} t/h`:"")],
+    ["Agua en la pulpa", fmt(Qw,3)+" m³/h", fmt(waterPerT,3)+" m³/t"],
+    ["Caudal de pulpa", fmt(QOp,3)+" m³/h"+(P.hrs<24?" en operación":""), fmt(slurryPerT,3)+" m³/t"+(P.hrs<24?` · promedio ${fmt(Q,3)} m³/h`:"")],
+    ["Densidad de pulpa", fmt(rhoP,3)+" t/m³", fmt(P.sol,0)+" % sólidos"],
+    ["Volumen efectivo por tanque", fmt(Veff,2)+" m³", "zona muerta "+fmt(P.dead,0)+" %"],
+    ["Tiempo de residencia", fmt(ti,2)+" h por tanque", fmt(tau,1)+" h total"],
+    ["Recuperación del circuito", `<b>${fmt(X*100,2)} %</b>`, `flujo pistón: ${fmt(pfr,2)} %${P.hrs<24?" · equivalente continuo":""}`],
+    ...(P.hrs<24&&DYN.data?[["Recuperación con paradas", `<b>${fmt(DYN.data.XNavg[DYN.data.XNavg.length-1]*100,2)} %</b>`, `simulación dinámica, promedio de lo descargado`]]:[]),
+    ["Au alimentado", fmt(auFeed,3)+" g/h", fmt(auFeed*24,2)+" g/d"],
+    ["Au disuelto", fmt(auDis,3)+" g/h", fmt(auDis*24,2)+" g/d · "+fmt(auDis*24/31.1035,3)+" oz troy/d"],
+    ["Ley del relave sólido", fmt(auRes,3)+" g/t", ""],
+    ["Au en solución rica", fmt(preg,3)+" mg/L", "sin dilución por lavado"],
+    ["NaCN consumido", fmt(cncUsed*P.tpd,1)+" kg/d", "estequiométrico para el Au: "+fmt(nacnSt*1000,1)+" g/d"],
+    ["Cal (CaO)", fmt(P.cao*P.tpd,1)+" kg/d", ""],
+    ["O₂ estequiométrico (Elsner)", fmt(o2St*1000,2)+" g/d", "el resto lo consumen sulfuros y la saturación"],
+  ];
+  $("tblBal").innerHTML="<tr><th>Corriente / variable</th><th class='n'>Valor</th><th>Equivalente</th></tr>"+rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+}
+
+/* ---------- Avance por tanque ---------- */
+function renderProg(P,sim,ti,classes){
+  const n=P.ntk, id=P.model, m=mById(id), tEnd=n*ti*1.25;
+  const batch=[]; for(let i=0;i<=150;i++){const t=tEnd*i/150; batch.push([t,alphaConst(id,P,t,classes)*100]);}
+  const circ=[[0,0]].concat(sim.cum.map((c,i)=>[(i+1)*ti,c*100]));
+  const band=[[0,0,0]].concat(sim.p10.map((v,i)=>[(i+1)*ti,v*100,sim.p90[i]*100]));
+  const ser=[{name:"P10–P90 de las partículas",color:m.color,band:true,pts:band},{name:"Lote / flujo pistón con NaCN de consigna",color:"--ink-3",dash:"5 4",pts:batch},{name:"Circuito: promedio a la salida de cada tanque",color:m.color,pts:circ,w:2.5},{name:"Salida de tanque",color:m.color,dots:true,pts:circ.slice(1),noTip:true}];
+  $("capProg").textContent=`Recuperación contra el tiempo medio de residencia acumulado (τ = ${fmt(ti,2)} h por tanque). La línea sólida es el promedio a la salida de cada tanque; la franja muestra la dispersión entre partículas: el 10 % que pasa poco tiempo (cortocircuito) queda abajo y el 10 % que pasa mucho, arriba. La línea punteada es el lote ideal con el mismo tiempo.`;
+  lineChart($("chProg"),{series:ser,xLabel:"Tiempo de residencia acumulado (h)",yLabel:"Extracción de Au (%)",xMin:0,xMax:tEnd,yMin:0,yMax:100,xName:"t (h)",fmtTipY:v=>fmt(v,2)+" %",height:320,
+    vlines:sim.cum.map((_,i)=>({x:(i+1)*ti,label:n<=10?"T"+(i+1):""}))});
+  legend($("lgProg"),ser.filter(s=>!s.noTip).map(s=>({name:s.name,color:s.color,dash:s.dash,dots:false})));
+  const k0=thetaRate(id,P,P.cn,classes)||1;
+  $("tblProg").innerHTML="<tr><th>Tanque</th><th class='n'>τ acumulado (h)</th><th class='n'>Recuperación (%)</th><th class='n'>Ganancia (%)</th><th class='n'>P10 (%)</th><th class='n'>P50 (%)</th><th class='n'>P90 (%)</th><th class='n'>NaCN (mg/L)</th><th class='n'>Velocidad relativa</th></tr>"+
+    sim.cum.map((c,i)=>`<tr><td>T${i+1}</td><td class="n">${fmt((i+1)*ti,1)}</td><td class="n">${fmt(c*100,2)}</td><td class="n">${fmt((c-(i?sim.cum[i-1]:0))*100,2)}</td><td class="n">${fmt(sim.p10[i]*100,1)}</td><td class="n">${fmt(sim.p50[i]*100,1)}</td><td class="n">${fmt(sim.p90[i]*100,1)}</td><td class="n">${fmt(sim.C[i],0)}</td><td class="n">${fmt(sim.k[i]/k0*100,0)} %</td></tr>`).join("");
+}
+
+/* ---------- Balance de cianuro ---------- */
+function renderCN(P,sim,ti){
+  const n=P.ntk, lab=sim.C.map((_,i)=>i+1), fl=freeFrac(P.ph);
+  const ptsC=[[0,sim.Cin]].concat(sim.C.map((c,i)=>[i+1,c]));
+  const rateRel=sim.k.map((k,i)=>[i+1,k/(thetaRate(P.model,P,P.cn,grainClasses(P.d50,P.sg))||1)*100]);
+  const ctl=wadsworth(P.cn,P.ph,doOf(P),P.T,P.dl);
+  $("capCN").textContent=`[NaCN] en la descarga de cada tanque (0 = entrada con la solución recirculada). Pérdida total k_d = ${fmt(sim.kd,4)} h⁻¹ con τ = ${fmt(ti,2)} h por tanque. ${P.dosMode==="dose"?`Con la dosis fija de ${fmt(P.doseKgT,2)} kg/t en T1, el simulador calcula el NaCN que resulta en cada tanque`:P.dosMode==="t1"?"Al dosificar solo en T1 el cianuro cae tanque a tanque":"La consigna se repone en cada tanque"}; la velocidad relativa muestra cuánto frena eso la lixiviación (el O₂ controla mientras D_CN[CN⁻] > 4D_O₂[O₂]).`;
+  const ser=[{name:"NaCN en el tanque (mg/L)",color:"--s2",pts:ptsC}]; if(P.dosMode!=="dose") ser.push({name:"Consigna",color:"--ink-3",pts:[[0,P.cn],[n,P.cn]],dash:"5 4",noTip:true});
+  lineChart($("chCNt"),{series:ser,xLabel:"Tanque",yLabel:"NaCN (mg/L)",xMin:0,xMax:n,xTicks:Math.min(n,12),yMin:0,yMax:Math.max(P.dosMode==="dose"?0:P.cn*1.15,...sim.C.map(c=>c*1.15),10),xName:"Tanque",fmtX:v=>fmt(v,0),fmtTipX:v=>v===0?"entrada":"T"+fmt(v,0),fmtTipY:v=>fmt(v,0)+" mg/L",height:240,
+    markers:rateRel.filter((_,i)=>i===n-1).map(p=>({x:p[0],y:sim.C[n-1],label:`velocidad ${fmt(p[1],0)} % de la de consigna`,color:"--s2",below:true}))});
+  legend($("lgCNt"),ser);
+  const tot=sim.addKgT;
+  $("cnKpi").innerHTML=[["NaCN agregado",`${fmt(tot,3)}<span class="u">kg/t</span>`],["Agregado por día",`${fmt(tot*P.tpd,1)}<span class="u">kg/d</span>`],["CN libre al relave",`${fmt(sim.C[n-1],0)}<span class="u">mg/L</span>`]].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  const pct=v=>tot>0?fmt(v/tot*100,1)+" %":"—";
+  const rows=[["Destruido por cianicidas (sulfuros, Cu, Fe)",sim.destCyKgT,`k = ${fmt(P.kcp,3)} h⁻¹`],["Perdido como HCN",sim.destHcnKgT,`HCN = ${fmt((1-fl)*100,1)} % del CN a pH ${fmt(P.ph,1)}`],["Sale con la solución del relave (a detoxificación)",sim.tailKgT,`${fmt(100-P.recyc,0)} % de la solución`],["Formando Au(CN)₂⁻ (estequiométrico)",sim.auKgT,"2 mol NaCN por mol de Au; incluido en lo anterior"]];
+  $("tblCN").innerHTML="<tr><th>Destino</th><th class='n'>kg/t</th><th class='n'>% del agregado</th><th>Detalle</th></tr>"+rows.map((r,i)=>`<tr><td>${r[0]}</td><td class="n">${fmt(r[1],i===3?4:3)}</td><td class="n">${i===3?"—":pct(r[1])}</td><td>${r[2]}</td></tr>`).join("")
+    +(P.recyc>0?`<tr><td>Recirculado (no se pierde)</td><td class="n">${fmt(sim.recKgT,3)}</td><td class="n">—</td><td>vuelve a T1 con ${fmt(sim.Cin,0)} mg/L</td></tr>`:"");
+}
+
+/* ---------- Doré y economía ---------- */
+function renderEconTab(P){
+  const Cw=P.sol/100, tph=P.tpd/24, Q=tph*(1/P.rhos+(1-Cw)/Cw), Veff=P.vtk*(1-P.dead/100), ti=Veff/Q;
+  const sim=circuitSim(P,P.ntk,ti); let X=sim.cum[P.ntk-1]; const cncUsed=P.cncMode==="calc"?sim.addKgT:P.cnc;
+  if(P.hrs<24){ const dd=dynSim(P,P.ntk,ti*P.hrs/24,{fill:true,hrs:P.hrs,NB:300}); X=dd.XNavg[dd.XNavg.length-1]; }
+  $("ecoCtx").innerHTML=[["Alimentación",`${fmt(P.tpd,1)}<span class="u">t/d</span>`],["Ley de cabeza",`${fmt(P.head,2)}<span class="u">g/t</span>`],["Extracción del circuito",`${fmt(X*100,2)}<span class="u">%${P.hrs<24?` (${fmt(P.hrs,1)} h/d)`:""}</span>`],["Tanques · τ total",`${P.ntk}<span class="u">× ${fmt(ti,1)} h = ${fmt(ti*P.ntk,1)} h</span>`],["NaCN usado en costos",`${fmt(cncUsed,3)}<span class="u">kg/t (${P.cncMode==="calc"?"balance":"manual"})</span>`]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  renderEcon({...P,cnc:cncUsed},X);
+}
+const OZ=31.1035;
+function econ(P,X){ // X = extracción del circuito (fracción)
+  const tpd=P.tpd, auFeed=tpd*P.head, auLeach=auFeed*X, auSol=auLeach*P.effRec/100, auDore=auSol*P.effFun/100;
+  const doreG=auDore/(P.dorePur/100), payG=auDore*P.pay/100, priceG=P.pAu/OZ;
+  const rev=payG*priceG, cCN=P.cnc*tpd*P.pCN, cCaO=P.cao*tpd*P.pCaO, cOp=P.opex*tpd, cost=cCN+cCaO+cOp;
+  const recOv=X*P.effRec/100*P.effFun/100*P.pay/100;
+  const breakEven = recOv>0&&priceG>0 ? (cost/tpd)/(recOv*priceG) : Infinity; // g/t
+  return {auFeed,auLeach,auSol,auDore,doreG,impG:doreG-auDore,payG,priceG,rev,cCN,cCaO,cOp,cost,margin:rev-cost,recOv,breakEven,valT:P.head*priceG};
+}
+function renderEcon(P,X){
+  const e=econ(P,X), usd=v=>"US$ "+fmt(v,0);
+  $("econKpi").innerHTML=[
+    ["Doré producido",`${fmt(e.doreG,1)}<span class="u">g/d</span>`],
+    ["Oro pagable",`${fmt(e.payG/OZ,2)}<span class="u">oz troy/d</span>`],
+    ["Ingreso",`${fmt(e.rev,0)}<span class="u">US$/d</span>`],
+    ["Margen sobre costos",`${fmt(e.margin,0)}<span class="u">US$/d</span>`],
+  ].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  const rows=[
+    ["Au alimentado",fmt(e.auFeed,2)+" g/d",`ley ${fmt(P.head,2)} g/t × ${fmt(P.tpd,1)} t/d`],
+    ["Au disuelto (lixiviación)",fmt(e.auLeach,2)+" g/d",`extracción ${fmt(X*100,2)} %`],
+    ["Au recuperado de la solución",fmt(e.auSol,2)+" g/d",`${$("recov").selectedOptions[0].text} ${fmt(P.effRec,1)} %`],
+    ["Au en el doré",fmt(e.auDore,2)+" g/d",`fundición ${fmt(P.effFun,1)} %`],
+    ["Doré (Au + Ag + impurezas)",fmt(e.doreG,2)+" g/d",`${fmt(e.doreG*30/1000,3)} kg/mes · ${fmt(P.dorePur,0)} % Au`],
+    ["Ag e impurezas en el doré",fmt(e.impG,2)+" g/d","no se valoran"],
+    ["Recuperación global de Au",fmt(e.recOv*100,2)+" %","lixiviación × recuperación × fundición × pagable"],
+    ["Valor del oro en el mineral",fmt(e.valT,1)+" US$/t",`${fmt(e.priceG,2)} US$/g`],
+    ["Ingreso",fmt(e.rev,0)+" US$/d",`${fmt(e.rev/P.tpd,1)} US$/t`],
+    ["Costo NaCN",fmt(e.cCN,1)+" US$/d",`${fmt(P.cnc,2)} kg/t (${P.cncMode==="calc"?"balance":"manual"}) × ${fmt(P.pCN,2)} US$/kg`],
+    ["Costo CaO",fmt(e.cCaO,1)+" US$/d",`${fmt(P.cao,2)} kg/t × ${fmt(P.pCaO,2)} US$/kg`],
+    ["Otros costos",fmt(e.cOp,0)+" US$/d",`${fmt(P.opex,1)} US$/t`],
+    ["Margen",`<b>${fmt(e.margin,0)} US$/d</b>`,`${fmt(e.margin/P.tpd,1)} US$/t · ${fmt(e.margin*30/1e3,1)} kUS$/mes`],
+    ["NaCN por onza producida",fmt(P.cnc*P.tpd/(e.payG/OZ||1e-9),1)+" kg/oz",""],
+    ["Ley de equilibrio",fmt(e.breakEven,3)+" g/t","ley de cabeza que solo cubre los costos ingresados"],
+  ];
+  $("tblEcon").innerHTML="<tr><th>Concepto</th><th class='n'>Valor</th><th>Detalle</th></tr>"+rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+  const vk=$("econVar").value, R={pAu:[1500,6000,"Precio del oro (US$/oz troy)"],cnc:[0.1,3,"Consumo de NaCN (kg/t)"],pCN:[0.5,8,"Precio del NaCN (US$/kg)"],head:[0.5,15,"Ley de cabeza (g/t)"],tpd:[5,100,"Alimentación (t/d)"]}[vk];
+  const inc=[],cst=[],mar=[]; const classes=grainClasses(P.d50,P.sg);
+  const Cw=P.sol/100, slurryPerT=1/P.rhos+(1-Cw)/Cw, Veff=P.vtk*(1-P.dead/100);
+  for(let i=0;i<=40;i++){ const x=R[0]+(R[1]-R[0])*i/40, Q={...P,[vk]:x}; let Xq=X;
+    if(vk==="tpd"){ const ti=Veff/((x/24)*slurryPerT); const sq=circuitSim(Q,P.ntk,ti,{M:800}); Xq=sq.cum[P.ntk-1]; if(P.cncMode==="calc") Q.cnc=sq.addKgT; }
+    else if(vk==="cnc"){ Q.cnc=x; }
+    const e2=econ(Q,Xq); inc.push([x,e2.rev]); cst.push([x,e2.cost]); mar.push([x,e2.margin]); }
+  const cur=vk==="pAu"?P.pAu:P[vk];
+  const ser=[{name:"Margen",color:"--s3",pts:mar,w:3},{name:"Ingreso",color:"--s1",pts:inc,dash:"6 4"},{name:"Costos",color:"--s2",pts:cst,dash:"2 3"}];
+  $("capEcon").textContent=`US$ por día al variar: ${R[2]}; lo demás queda en los valores actuales.${vk==="tpd"?" Más alimentación reduce el tiempo de residencia y la extracción se recalcula.":" La extracción del circuito se mantiene en "+fmt(X*100,1)+" %."}`;
+  const ymin=Math.min(0,...mar.map(p=>p[1]));
+  lineChart($("chEcon"),{padL:74,series:ser,xLabel:R[2],yLabel:"US$/d",xMin:R[0],xMax:R[1],yMin:ymin,xName:R[2],fmtTipY:v=>"US$ "+fmt(v,0),vlines:[{x:cur,label:"actual"}],hlines:ymin<0?[{y:0,label:"equilibrio",left:true}]:[]});
+  legend($("lgEcon"),ser);
+}
+
+/* ---------- Cálculos ---------- */
+function genArr(){ const P=readP(), classes=grainClasses(P.d50,P.sg); $("arrData").value=[15,25,35,45].map(T=>{const Q={...P,T}; const t50=timeTo("MEC",Q,0.5*amax(Q),classes); return `${T}, ${(Math.LN2/t50).toFixed(5)}`;}).join("\n"); }
+function renderArr(){
+  const rows=[]; $("arrData").value.split(/\n/).forEach(l=>{const p=l.split(/[,;\t ]+/).map(s=>parseFloat(s.replace(",","."))).filter(isFinite); if(p.length>=2&&p[1]>0) rows.push(p);});
+  if(rows.length<2){ $("tblArr").innerHTML="<tr><td>Se necesitan al menos dos temperaturas con k &gt; 0.</td></tr>"; $("chArr").innerHTML=""; return; }
+  const x=rows.map(r=>1000/(r[0]+273.15)), y=rows.map(r=>Math.log(r[1])), lr=linreg(x,y), Ea=-lr.m*1000*R_GAS/1000, A=Math.exp(lr.b);
+  const reg = Math.abs(Ea)<20?"compatible con control difusional":Ea>40?"compatible con control químico":"zona intermedia (control mixto)";
+  $("tblArr").innerHTML=`<tr><th>Resultado</th><th class="n">Valor</th></tr><tr><td>Pendiente (−Eₐ/R)</td><td class="n">${fmt(lr.m*1000,1)} K</td></tr><tr><td>Energía de activación Eₐ</td><td class="n">${fmt(Ea,2)} kJ/mol</td></tr><tr><td>Factor de frecuencia A</td><td class="n">${fmtSci(A)} h⁻¹</td></tr><tr><td>R²</td><td class="n">${fmt(lr.r2,4)}</td></tr><tr><td>Lectura</td><td class="n">${Ea<0?"Eₐ aparente negativa: otro efecto domina (p. ej., menor OD al calentar)":reg}</td></tr>`;
+  const xs=[Math.min(...x),Math.max(...x)];
+  lineChart($("chArr"),{series:[{name:"Ajuste",color:"--s1",pts:xs.map(v=>[v,lr.m*v+lr.b]),noTip:true},{name:"ln k",color:"--ink",dots:true,pts:x.map((v,i)=>[v,y[i]])}],xLabel:"1000/T (K⁻¹)",yLabel:"ln k",xMin:xs[0]-0.02,xMax:xs[1]+0.02,yMin:Math.min(...y)-0.2,yMax:Math.max(...y)+0.2,xName:"1000/T",fmtX:v=>fmt(v,2),fmtTipX:v=>fmt(v,3),fmtTipY:v=>fmt(v,3)});
+}
+let RS=null;
+function renderCalc(P){
+  if(!$("arrData").value.trim()){ genArr(); } renderArr();
+  if(!RS) RS=rsmFit();
+  const t=parseFloat($("rsT").value), mm=parseFloat($("rsM").value), c=parseFloat($("rsC").value), y=rsmPred(RS.b,t,mm,c);
+  const out = t<3||t>12||mm<140||mm>270||c<1||c>2.5;
+  $("rsKpi").innerHTML=`<div class="kpi"><div class="l">Recuperación predicha</div><div class="v">${fmt(y,2)}<span class="u">%</span></div></div><div class="kpi"><div class="l">NaCN equivalente</div><div class="v">${fmt(c*453.59,0)}<span class="u">mg/L</span></div></div><div class="kpi"><div class="l">Ajuste del modelo</div><div class="v">${fmt(RS.r2*100,2)}<span class="u">% R²</span></div></div>`+(out?`<div class="kpi"><div class="l">Aviso</div><div class="v"><span class="pill warn">fuera del rango ensayado</span></div></div>`:"");
+  const names=["β₀","A (tiempo)","B (malla)","C (NaCN)","A²","AB","AC","B²","BC","C²"];
+  $("tblRS").innerHTML="<tr><th>Término</th><th class='n'>Coeficiente</th></tr>"+RS.b.map((v,i)=>`<tr><td>${names[i]}</td><td class="n">${fmt(v,3)}</td></tr>`).join("");
+  const meshes=[[140,"--s2"],[200,"--s1"],[270,"--s3"]];
+  const ser=meshes.map(([ms,col])=>{const pts=[]; for(let i=0;i<=45;i++){const tt=3+9*i/45; pts.push([tt,rsmPred(RS.b,tt,ms,c)]);} return {name:`−${ms} mallas`,color:col,pts};});
+  meshes.forEach(([ms,col])=>{ const d=RSM_DATA.filter(r=>r[1]===ms&&Math.abs(r[2]-c)<0.01).map(r=>[r[0],r[3]]); if(d.length) ser.push({name:`ensayos −${ms}`,color:col,dots:true,pts:d}); });
+  lineChart($("chRS"),{series:ser,xLabel:"Tiempo de cianuración (h)",yLabel:"Recuperación de Au (%)",xMin:3,xMax:12,yMin:50,yMax:100,xName:"t (h)",fmtTipY:v=>fmt(v,2)+" %",markers:[{x:t,y,label:fmt(y,1)+" %",color:"--accent"}]});
+  legend($("lgRS"),ser.map(s=>({name:s.name,color:s.color,dots:s.dots})));
+}
+["rsT","rsM","rsC"].forEach(id=>$(id).addEventListener("input",schedule));
+
+initUI(); dynInit(); showTab(location.hash.slice(1)||"cinetica",false);
+</script>
+</body>
+</html>
